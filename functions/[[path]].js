@@ -2,7 +2,7 @@ const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
 const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
-const PROXY_VERSION = "2026-04-03-v3";
+const PROXY_VERSION = "2026-04-03-v4";
 
 function rewriteToCustomDomain(raw, targetOrigin, currentOrigin) {
   if (!raw) return raw;
@@ -27,6 +27,15 @@ function rewriteBodyText(content, targetOrigin, currentOrigin) {
     .join(to)
     .split(fromEscaped)
     .join(toEscaped);
+}
+
+function normalizeHeadersAfterRewrite(headers) {
+  // Body text is reconstructed at edge; stale upstream metadata can break parsing.
+  headers.delete("content-encoding");
+  headers.delete("content-length");
+  headers.delete("etag");
+  headers.delete("last-modified");
+  headers.delete("accept-ranges");
 }
 
 class UrlAttrRewriter {
@@ -122,6 +131,7 @@ export async function onRequest(context) {
 
   const rawText = await upstreamResponse.text();
   const rewrittenText = rewriteBodyText(rawText, targetOrigin, currentOrigin);
+  normalizeHeadersAfterRewrite(responseHeaders);
 
   if (!isHtml) {
     return new Response(rewrittenText, {
