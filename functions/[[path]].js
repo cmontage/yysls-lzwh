@@ -2,55 +2,65 @@ const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
 const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
-const PROXY_VERSION = "2026-04-03-v7";
+const PROXY_VERSION = "2026-04-03-v8";
+const DEFAULT_PROXY_HOSTS = [
+  "api.ugnas.com",
+  "web.ugnas.com",
+  "cloud.ugreengroup.com",
+  "cloud.ugnas.com",
+];
+const PROXY_PREFIX = "/__proxy/";
 
-function rewriteToCustomDomain(raw, targetBaseUrl, currentOrigin) {
-  if (!raw) return raw;
-  try {
-    const parsed = new URL(raw, targetBaseUrl);
-    parsed.protocol = currentOrigin.protocol;
-    parsed.host = currentOrigin.host;
-    return parsed.toString();
-  } catch {
-    return raw;
+function parseProxyHosts(value) {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isSafeProxyHost(hostname) {
+  return /^[a-z0-9.-]+$/.test(hostname);
+}
+
+function collectHostVariants(hostname) {
+  const set = new Set();
+  if (!hostname) return set;
+  const host = hostname.toLowerCase();
+  const hostNoWww = host.replace(/^www\./i, "");
+  set.add(hostNoWww);
+  set.add(`www.${hostNoWww}`);
+  return set;
+}
+
+function replaceAllLiteral(content, from, to) {
+  if (!from || from === to) return content;
+  const fromEscaped = from.replace(/\//g, "\\/");
+  const toEscaped = to.replace(/\//g, "\\/");
+  return content.split(from).join(to).split(fromEscaped).join(toEscaped);
+}
+
+function buildReplacementPairs(currentOrigin, primaryHostSet, proxyHostSet) {
+  const pairs = [];
+  for (const host of primaryHostSet) {
+    pairs.push([`https://${host}`, currentOrigin.origin]);
+    pairs.push([`http://${host}`, currentOrigin.origin]);
   }
+  for (const host of proxyHostSet) {
+    if (primaryHostSet.has(host)) continue;
+    const proxyBase = `${currentOrigin.origin}${PROXY_PREFIX}${host}`;
+    pairs.push([`https://${host}`, proxyBase]);
+    pairs.push([`http://${host}`, proxyBase]);
+  }
+  return pairs;
 }
 
-function replaceOriginInText(content, fromOrigin, toOrigin) {
-  if (!fromOrigin || fromOrigin === toOrigin) return content;
-  const fromEscaped = fromOrigin.replace(/\//g, "\\/");
-  const toEscaped = toOrigin.replace(/\//g, "\\/");
-  return content
-    .split(fromOrigin)
-    .join(toOrigin)
-    .split(fromEscaped)
-    .join(toEscaped);
-}
-
-function rewriteBodyText(content, fromOrigins, currentOrigin) {
+function rewriteBodyText(content, replacementPairs) {
   let out = content;
-  const toOrigin = currentOrigin.origin;
-  for (const fromOrigin of fromOrigins) {
-    out = replaceOriginInText(out, fromOrigin, toOrigin);
+  for (const [from, to] of replacementPairs) {
+    out = replaceAllLiteral(out, from, to);
   }
   return out;
-}
-
-function collectOriginVariants(...originCandidates) {
-  const set = new Set();
-  for (const originCandidate of originCandidates) {
-    if (!originCandidate) continue;
-    try {
-      const u = new URL(originCandidate);
-      const hostNoWww = u.hostname.replace(/^www\./i, "");
-      set.add(u.origin);
-      set.add(`${u.protocol}//${hostNoWww}`);
-      set.add(`${u.protocol}//www.${hostNoWww}`);
-    } catch {
-      // Ignore invalid origin candidate.
-    }
-  }
-  return [...set];
 }
 
 function normalizeHeadersAfterRewrite(headers) {
@@ -60,13 +70,16 @@ function normalizeHeadersAfterRewrite(headers) {
   headers.delete("etag");
   headers.delete("last-modified");
   headers.delete("accept-ranges");
+  headers.set("cache-control", "no-store");
 }
 
 class UrlAttrRewriter {
-  constructor(attr, targetBaseUrl, currentOrigin) {
+  constructor(attr, targetBaseUrl, currentOrigin, primaryHostSet, proxyHostSet) {
     this.attr = attr;
     this.targetBaseUrl = targetBaseUrl;
     this.currentOrigin = currentOrigin;
+    this.primaryHostSet = primaryHostSet;
+    this.proxyHostSet = proxyHostSet;
   }
 
   element(element) {
@@ -75,7 +88,23 @@ class UrlAttrRewriter {
     if (/^(#|javascript:|data:|mailto:|tel:)/i.test(value)) {
       return;
     }
-    const rewritten = rewriteToCustomDomain(value, this.targetBaseUrl, this.currentOrigin);
+
+    let rewritten = value;
+    try {
+      const parsed = new URL(value, this.targetBaseUrl);
+      if (parsed.host === this.currentOrigin.host) {
+        rewritten = parsed.toString();
+      } else if (this.primaryHostSet.has(parsed.hostname.toLowerCase())) {
+        parsed.protocol = this.currentOrigin.protocol;
+        parsed.host = this.currentOrigin.host;
+        rewritten = parsed.toString();
+      } else if (this.proxyHostSet.has(parsed.hostname.toLowerCase())) {
+        rewritten = `${this.currentOrigin.origin}${PROXY_PREFIX}${parsed.hostname}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+    } catch {
+      rewritten = value;
+    }
+
     if (rewritten && rewritten !== value) {
       element.setAttribute(this.attr, rewritten);
     }
@@ -100,24 +129,48 @@ export async function onRequest(context) {
     return new Response("TARGET_URL is invalid.", { status: 500 });
   }
 
-  const targetOrigin = target.origin;
   const currentOrigin = new URL(url.origin);
-  const targetPathPrefix = target.pathname.endsWith("/")
-    ? target.pathname
-    : target.pathname + "/";
-  const upstreamUrl =
-    url.pathname === "/" || url.pathname === "/index.html"
-      ? new URL(target.toString())
-      : new URL(url.pathname + url.search, targetOrigin);
+  const primaryHostSet = collectHostVariants(target.hostname);
+  const proxyHostSet = new Set([
+    ...DEFAULT_PROXY_HOSTS,
+    ...parseProxyHosts(env.PROXY_HOSTS),
+  ]);
 
-  if ((url.pathname === "/" || url.pathname === "/index.html") && url.search) {
-    upstreamUrl.search = url.search;
+  let upstreamUrl;
+  if (url.pathname.startsWith(PROXY_PREFIX)) {
+    const rest = url.pathname.slice(PROXY_PREFIX.length);
+    const slashIndex = rest.indexOf("/");
+    const host = (slashIndex === -1 ? rest : rest.slice(0, slashIndex)).toLowerCase();
+    const path = slashIndex === -1 ? "/" : `/${rest.slice(slashIndex + 1)}`;
+
+    if (!host || !isSafeProxyHost(host)) {
+      return new Response("Invalid proxy host.", { status: 400 });
+    }
+
+    if (!proxyHostSet.has(host) && !primaryHostSet.has(host)) {
+      return new Response("Proxy host is not allowed.", { status: 403 });
+    }
+
+    upstreamUrl = new URL(path + url.search, `https://${host}`);
+  } else {
+    const targetOrigin = target.origin;
+    upstreamUrl =
+      url.pathname === "/" || url.pathname === "/index.html"
+        ? new URL(target.toString())
+        : new URL(url.pathname + url.search, targetOrigin);
+
+    if ((url.pathname === "/" || url.pathname === "/index.html") && url.search) {
+      upstreamUrl.search = url.search;
+    }
   }
 
+  const upstreamOrigin = upstreamUrl.origin;
+  const upstreamHost = upstreamUrl.host;
+
   const upstreamHeaders = new Headers(request.headers);
-  upstreamHeaders.set("Host", target.host);
-  upstreamHeaders.set("Origin", targetOrigin);
-  upstreamHeaders.set("Referer", targetOrigin + "/");
+  upstreamHeaders.set("Host", upstreamHost);
+  upstreamHeaders.set("Origin", upstreamOrigin);
+  upstreamHeaders.set("Referer", upstreamOrigin + "/");
   upstreamHeaders.delete("cf-connecting-ip");
   upstreamHeaders.delete("x-forwarded-for");
   upstreamHeaders.delete("x-real-ip");
@@ -131,6 +184,13 @@ export async function onRequest(context) {
 
   const upstreamResponse = await fetch(upstreamRequest);
   const upstreamFinalOrigin = new URL(upstreamResponse.url).origin;
+  const upstreamFinalHost = new URL(upstreamResponse.url).hostname.toLowerCase();
+
+  for (const host of collectHostVariants(upstreamFinalHost)) {
+    if (!primaryHostSet.has(host)) {
+      proxyHostSet.add(host);
+    }
+  }
 
   const responseHeaders = new Headers(upstreamResponse.headers);
 
@@ -158,10 +218,16 @@ export async function onRequest(context) {
   }
 
   const rawText = await upstreamResponse.text();
+  for (const host of collectHostVariants(target.hostname)) {
+    primaryHostSet.add(host);
+  }
+  for (const host of collectHostVariants(new URL(upstreamFinalOrigin).hostname)) {
+    primaryHostSet.add(host);
+  }
+
   const rewrittenText = rewriteBodyText(
     rawText,
-    collectOriginVariants(targetOrigin, upstreamFinalOrigin),
-    currentOrigin
+    buildReplacementPairs(currentOrigin, primaryHostSet, proxyHostSet)
   );
   normalizeHeadersAfterRewrite(responseHeaders);
 
@@ -173,29 +239,81 @@ export async function onRequest(context) {
     });
   }
 
+  const targetPathPrefix = upstreamUrl.pathname.endsWith("/")
+    ? upstreamUrl.pathname
+    : upstreamUrl.pathname.slice(0, upstreamUrl.pathname.lastIndexOf("/") + 1) || "/";
+
   // Force title and favicon on all HTML responses.
   const rewritten = new HTMLRewriter()
-    .on("a[href]", new UrlAttrRewriter("href", upstreamUrl.toString(), currentOrigin))
+    .on(
+      "a[href]",
+      new UrlAttrRewriter(
+        "href",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
+    )
     .on(
       "link[href]",
-      new UrlAttrRewriter("href", upstreamUrl.toString(), currentOrigin)
+      new UrlAttrRewriter(
+        "href",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
     )
     .on(
       "script[src]",
-      new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin)
+      new UrlAttrRewriter(
+        "src",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
     )
-    .on("img[src]", new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin))
+    .on(
+      "img[src]",
+      new UrlAttrRewriter(
+        "src",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
+    )
     .on(
       "iframe[src]",
-      new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin)
+      new UrlAttrRewriter(
+        "src",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
     )
     .on(
       "source[src]",
-      new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin)
+      new UrlAttrRewriter(
+        "src",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
     )
     .on(
       "form[action]",
-      new UrlAttrRewriter("action", upstreamUrl.toString(), currentOrigin)
+      new UrlAttrRewriter(
+        "action",
+        upstreamUrl.toString(),
+        currentOrigin,
+        primaryHostSet,
+        proxyHostSet
+      )
     )
     .on("head", {
       element(element) {
