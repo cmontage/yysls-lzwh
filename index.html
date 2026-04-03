@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>落子无悔！</title>
     <meta name="description" content="查看落子无悔百业的精彩瞬间与微信交流群。">
-    
+
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <!-- 使用现代字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --primary-glow: rgba(212, 175, 55, 0.4); /* 暗金色发光 */
+            --primary-glow: rgba(212, 175, 55, 0.4);
+            /* 暗金色发光 */
             --glass-bg: rgba(20, 20, 20, 0.6);
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-main: #f5f5f7;
@@ -25,26 +27,33 @@
             padding: 0;
         }
 
-        body, html {
+        body,
+        html {
             min-height: 100vh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #050505;
             color: var(--text-main);
             overflow-x: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            /* 动态渐变背景动画 */
-            background: radial-gradient(circle at 15% 50%, rgba(30, 25, 15, 1), transparent 50%),
-                        radial-gradient(circle at 85% 30%, rgba(15, 20, 25, 1), transparent 50%);
+
+            /* 燕云十六声风格：水墨山水与暗黑幽静交叠的背景 */
+            background-image: linear-gradient(to bottom, rgba(5, 5, 5, 0.6), rgba(8, 12, 12, 0.95)), url('assets/yanyun_bg.png');
             background-color: #030303;
-            background-size: 200% 200%;
-            animation: bgDrift 15s ease infinite alternate;
+            background-size: 110% 110%;
+            background-position: center;
+            background-attachment: fixed;
+            animation: bgPan 40s ease-in-out infinite alternate;
         }
 
-        @keyframes bgDrift {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
+        @keyframes bgPan {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            100% {
+                background-position: 100% 50%;
+            }
         }
 
         /* 顶部装饰线 */
@@ -90,8 +99,13 @@
         }
 
         /* 错开动画延迟 */
-        .card:nth-child(1) { animation-delay: 0.1s; }
-        .card:nth-child(2) { animation-delay: 0.3s; }
+        .card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .card:nth-child(2) {
+            animation-delay: 0.3s;
+        }
 
         @keyframes fadeUp {
             to {
@@ -155,8 +169,8 @@
             margin: 0 auto 2rem;
             border-radius: 16px;
             padding: 8px;
-            background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(0,0,0,0.5));
-            box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.5));
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
         }
 
         .qr-wrapper img {
@@ -219,8 +233,8 @@
             font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: rgba(255,255,255,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 4px 8px;
             border-radius: 4px;
         }
@@ -238,11 +252,23 @@
             transition: opacity 0.3s;
             opacity: 0;
         }
-        
+
+        /* 动态粒子绘制层 */
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
+
 <body>
     <div class="top-glow"></div>
+    <canvas id="particles-canvas"></canvas>
     <div id="cursor-glow"></div>
 
     <div class="container">
@@ -251,11 +277,11 @@
             <div class="tag">Community</div>
             <div class="card-icon">✦</div>
             <h2>加入交流群</h2>
-            <p>扫码加入落子无悔百业群，<br>与同好探索更多精彩剧情与攻略。</p>
+            <p>扫码加入落子无悔百业群，<br>与同好探索江湖中更多精彩瞬间。</p>
             <div class="qr-wrapper">
                 <img src="assets/qr.png" alt="微信群二维码" id="qr-img">
             </div>
-            <div style="font-size: 0.85rem; color: #666;">（目前演示为 AI 占位图，请后续替换）</div>
+            <div style="font-size: 0.85rem; color: #666;"></div>
         </div>
 
         <!-- 分区二：相册链接 -->
@@ -266,7 +292,8 @@
             <p>沉浸式体验游戏极致美学，<br>回顾我们共同记录的震撼时刻。</p>
             <!-- 占位以保持高度一致 -->
             <div style="height: 180px; display: flex; align-items: center; justify-content: center;">
-                 <a href="https://blackmyth.cn22.ug.link/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae" class="btn">进入相册探索</a>
+                <a href="https://blackmyth.cn22.ug.link/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae"
+                    class="btn">进入相册探索</a>
             </div>
         </div>
     </div>
@@ -294,13 +321,13 @@
                     const rect = card.getBoundingClientRect();
                     const x = e.clientX - rect.left; // x position within the element
                     const y = e.clientY - rect.top;  // y position within the element
-                    
+
                     const centerX = rect.width / 2;
                     const centerY = rect.height / 2;
-                    
+
                     const rotateX = ((y - centerY) / centerY) * -5; // max 5 deg
                     const rotateY = ((x - centerX) / centerX) * 5;  // max 5 deg
-                    
+
                     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-10px)`;
                 });
 
@@ -308,7 +335,73 @@
                     card.style.transform = `perspective(1000px) rotateX(0) rotateY(0) translateY(0)`;
                 });
             });
+
+            // --- 动态粒子系统 (余烬/尘埃飘动效果) ---
+            const canvas = document.getElementById('particles-canvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.size = Math.random() * 2 + 0.5; // 余烬大小
+                    this.speedX = Math.random() * 0.5 - 0.25;
+                    this.speedY = Math.random() * -0.6 - 0.2; // 缓慢上升
+                    this.opacity = Math.random() * 0.6 + 0.1;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.opacity > 0) {
+                        this.opacity -= 0.001; // 缓慢熄灭
+                    }
+                    // 飞出屏幕或完全透明后，在底部重生
+                    if (this.y < 0 || this.opacity <= 0) {
+                        this.x = Math.random() * canvas.width;
+                        this.y = canvas.height + 10;
+                        this.opacity = Math.random() * 0.6 + 0.1;
+                        this.speedX = Math.random() * 0.5 - 0.25;
+                    }
+                }
+                draw() {
+                    ctx.fillStyle = `rgba(212, 175, 55, ${this.opacity})`; // 暗金萤火/余烬
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = "rgba(212, 175, 55, 0.8)";
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            function initParticles() {
+                particles = [];
+                // 控制粒子数量，保证性能和优雅感（不宜过多）
+                for (let i = 0; i < 40; i++) {
+                    particles.push(new Particle());
+                }
+            }
+
+            function animateParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].update();
+                    particles[i].draw();
+                }
+                requestAnimationFrame(animateParticles);
+            }
+
+            initParticles();
+            animateParticles();
         });
     </script>
 </body>
+
 </html>
