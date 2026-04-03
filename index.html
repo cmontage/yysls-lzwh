@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>黑神话：悟空 - 照片分享</title>
+    <meta name="description" content="查看《黑神话：悟空》精彩瞬间照片分享。">
+
+    <!-- 允许全屏和移动端优化 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+    <style>
+        /* 极致简约的全屏布局 */
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: #000;
+            /* 背景黑场，无缝衔接游戏氛围 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* Iframe 容器 */
+        .iframe-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* 加载动画 (可选，增强用户体验) */
+        .loader {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .loaded .loader {
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="loader">正在加载分享内容...</div>
+
+    <div class="iframe-container">
+        <iframe id="target-frame"
+            src="https://blackmyth.cn22.ug.link/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae#/login"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen>
+        </iframe>
+    </div>
+
+    <script>
+        const iframe = document.getElementById('target-frame');
+
+        // 当 iframe 加载完成后隐藏加载文字
+        iframe.onload = function () {
+            document.body.classList.add('loaded');
+        };
+
+        // 自动处理移动端点击后的焦点流失（如果需要）
+        window.focus();
+        window.addEventListener('click', () => {
+            window.focus();
+        });
+    </script>
+</body>
+
+</html>
