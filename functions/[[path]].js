@@ -2,12 +2,12 @@ const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
 const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
-const PROXY_VERSION = "2026-04-03-v4";
+const PROXY_VERSION = "2026-04-03-v5";
 
-function rewriteToCustomDomain(raw, targetOrigin, currentOrigin) {
+function rewriteToCustomDomain(raw, targetBaseUrl, currentOrigin) {
   if (!raw) return raw;
   try {
-    const parsed = new URL(raw, targetOrigin);
+    const parsed = new URL(raw, targetBaseUrl);
     parsed.protocol = currentOrigin.protocol;
     parsed.host = currentOrigin.host;
     return parsed.toString();
@@ -39,16 +39,19 @@ function normalizeHeadersAfterRewrite(headers) {
 }
 
 class UrlAttrRewriter {
-  constructor(attr, targetOrigin, currentOrigin) {
+  constructor(attr, targetBaseUrl, currentOrigin) {
     this.attr = attr;
-    this.targetOrigin = targetOrigin;
+    this.targetBaseUrl = targetBaseUrl;
     this.currentOrigin = currentOrigin;
   }
 
   element(element) {
     const value = element.getAttribute(this.attr);
     if (!value) return;
-    const rewritten = rewriteToCustomDomain(value, this.targetOrigin, this.currentOrigin);
+    if (/^(#|javascript:|data:|mailto:|tel:)/i.test(value)) {
+      return;
+    }
+    const rewritten = rewriteToCustomDomain(value, this.targetBaseUrl, this.currentOrigin);
     if (rewritten && rewritten !== value) {
       element.setAttribute(this.attr, rewritten);
     }
@@ -143,13 +146,28 @@ export async function onRequest(context) {
 
   // Force title and favicon on all HTML responses.
   const rewritten = new HTMLRewriter()
-    .on("a[href]", new UrlAttrRewriter("href", targetOrigin, currentOrigin))
-    .on("link[href]", new UrlAttrRewriter("href", targetOrigin, currentOrigin))
-    .on("script[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
-    .on("img[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
-    .on("iframe[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
-    .on("source[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
-    .on("form[action]", new UrlAttrRewriter("action", targetOrigin, currentOrigin))
+    .on("a[href]", new UrlAttrRewriter("href", upstreamUrl.toString(), currentOrigin))
+    .on(
+      "link[href]",
+      new UrlAttrRewriter("href", upstreamUrl.toString(), currentOrigin)
+    )
+    .on(
+      "script[src]",
+      new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin)
+    )
+    .on("img[src]", new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin))
+    .on(
+      "iframe[src]",
+      new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin)
+    )
+    .on(
+      "source[src]",
+      new UrlAttrRewriter("src", upstreamUrl.toString(), currentOrigin)
+    )
+    .on(
+      "form[action]",
+      new UrlAttrRewriter("action", upstreamUrl.toString(), currentOrigin)
+    )
     .on("head", {
       element(element) {
         element.append(
