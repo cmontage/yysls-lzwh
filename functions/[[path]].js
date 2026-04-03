@@ -2,6 +2,7 @@ const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
 const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
+const PROXY_VERSION = "2026-04-03-v3";
 
 function rewriteToCustomDomain(raw, targetOrigin, currentOrigin) {
   if (!raw) return raw;
@@ -88,6 +89,7 @@ export async function onRequest(context) {
   responseHeaders.delete("frame-options");
   responseHeaders.delete("content-security-policy");
   responseHeaders.delete("content-security-policy-report-only");
+  responseHeaders.set("x-proxy-version", PROXY_VERSION);
 
   const contentType = responseHeaders.get("content-type") || "";
   if (!contentType.includes("text/html")) {
