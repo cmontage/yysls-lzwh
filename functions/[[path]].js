@@ -2,7 +2,7 @@ const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
 const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
-const PROXY_VERSION = "2026-04-03-v6";
+const PROXY_VERSION = "2026-04-03-v7";
 
 function rewriteToCustomDomain(raw, targetBaseUrl, currentOrigin) {
   if (!raw) return raw;
@@ -34,6 +34,23 @@ function rewriteBodyText(content, fromOrigins, currentOrigin) {
     out = replaceOriginInText(out, fromOrigin, toOrigin);
   }
   return out;
+}
+
+function collectOriginVariants(...originCandidates) {
+  const set = new Set();
+  for (const originCandidate of originCandidates) {
+    if (!originCandidate) continue;
+    try {
+      const u = new URL(originCandidate);
+      const hostNoWww = u.hostname.replace(/^www\./i, "");
+      set.add(u.origin);
+      set.add(`${u.protocol}//${hostNoWww}`);
+      set.add(`${u.protocol}//www.${hostNoWww}`);
+    } catch {
+      // Ignore invalid origin candidate.
+    }
+  }
+  return [...set];
 }
 
 function normalizeHeadersAfterRewrite(headers) {
@@ -143,7 +160,7 @@ export async function onRequest(context) {
   const rawText = await upstreamResponse.text();
   const rewrittenText = rewriteBodyText(
     rawText,
-    [targetOrigin, upstreamFinalOrigin],
+    collectOriginVariants(targetOrigin, upstreamFinalOrigin),
     currentOrigin
   );
   normalizeHeadersAfterRewrite(responseHeaders);
