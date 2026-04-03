@@ -2,6 +2,35 @@ const SITE_TITLE = "落子无悔！";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
 
+function rewriteToCustomDomain(raw, targetOrigin, currentOrigin) {
+  if (!raw) return raw;
+  try {
+    const parsed = new URL(raw, targetOrigin);
+    parsed.protocol = currentOrigin.protocol;
+    parsed.host = currentOrigin.host;
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
+}
+
+class UrlAttrRewriter {
+  constructor(attr, targetOrigin, currentOrigin) {
+    this.attr = attr;
+    this.targetOrigin = targetOrigin;
+    this.currentOrigin = currentOrigin;
+  }
+
+  element(element) {
+    const value = element.getAttribute(this.attr);
+    if (!value) return;
+    const rewritten = rewriteToCustomDomain(value, this.targetOrigin, this.currentOrigin);
+    if (rewritten && rewritten !== value) {
+      element.setAttribute(this.attr, rewritten);
+    }
+  }
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -21,6 +50,10 @@ export async function onRequest(context) {
   }
 
   const targetOrigin = target.origin;
+  const currentOrigin = new URL(url.origin);
+  const targetPathPrefix = target.pathname.endsWith("/")
+    ? target.pathname
+    : target.pathname + "/";
   const upstreamUrl =
     url.pathname === "/" || url.pathname === "/index.html"
       ? new URL(target.toString())
@@ -52,21 +85,17 @@ export async function onRequest(context) {
   // Keep the custom domain visible by rewriting upstream redirects.
   const location = responseHeaders.get("location");
   if (location) {
-    try {
-      const redirectURL = new URL(location, targetOrigin);
-      if (redirectURL.origin === targetOrigin) {
-        redirectURL.protocol = url.protocol;
-        redirectURL.host = url.host;
-        responseHeaders.set("location", redirectURL.toString());
-      }
-    } catch {
-      // Ignore malformed location and keep original.
-    }
+    responseHeaders.set(
+      "location",
+      rewriteToCustomDomain(location, targetOrigin, currentOrigin)
+    );
   }
 
   // Remove frame restrictions that can break embedded resources.
   responseHeaders.delete("x-frame-options");
   responseHeaders.delete("frame-options");
+  responseHeaders.delete("content-security-policy");
+  responseHeaders.delete("content-security-policy-report-only");
 
   const contentType = responseHeaders.get("content-type") || "";
   if (!contentType.includes("text/html")) {
@@ -79,6 +108,13 @@ export async function onRequest(context) {
 
   // Force title and favicon on all HTML responses.
   const rewritten = new HTMLRewriter()
+    .on("a[href]", new UrlAttrRewriter("href", targetOrigin, currentOrigin))
+    .on("link[href]", new UrlAttrRewriter("href", targetOrigin, currentOrigin))
+    .on("script[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
+    .on("img[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
+    .on("iframe[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
+    .on("source[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
+    .on("form[action]", new UrlAttrRewriter("action", targetOrigin, currentOrigin))
     .on("title", {
       text(text) {
         text.replace(SITE_TITLE);
@@ -87,7 +123,9 @@ export async function onRequest(context) {
     .on("head", {
       element(element) {
         element.append(
-          '<link rel="icon" href="/favicon.ico" />\n<meta name="apple-mobile-web-app-title" content="落子无悔！" />',
+          `<base href="${targetPathPrefix}" />\n<link rel="icon" href="/favicon.ico" />\n<meta name="apple-mobile-web-app-title" content="落子无悔！" />\n<script>(function(){var t=${JSON.stringify(
+            SITE_TITLE
+          )};function setMeta(){document.title=t;var icon=document.querySelector('link[rel~="icon"]');if(!icon){icon=document.createElement('link');icon.setAttribute('rel','icon');document.head.appendChild(icon);}icon.setAttribute('href','/favicon.ico');}setMeta();new MutationObserver(setMeta).observe(document.documentElement,{subtree:true,childList:true});})();</script>`,
           { html: true }
         );
       },
