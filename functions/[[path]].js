@@ -16,6 +16,19 @@ function rewriteToCustomDomain(raw, targetOrigin, currentOrigin) {
   }
 }
 
+function rewriteBodyText(content, targetOrigin, currentOrigin) {
+  const from = targetOrigin;
+  const to = currentOrigin.origin;
+  const fromEscaped = from.replace(/\//g, "\\/");
+  const toEscaped = to.replace(/\//g, "\\/");
+
+  return content
+    .split(from)
+    .join(to)
+    .split(fromEscaped)
+    .join(toEscaped);
+}
+
 class UrlAttrRewriter {
   constructor(attr, targetOrigin, currentOrigin) {
     this.attr = attr;
@@ -92,8 +105,26 @@ export async function onRequest(context) {
   responseHeaders.set("x-proxy-version", PROXY_VERSION);
 
   const contentType = responseHeaders.get("content-type") || "";
-  if (!contentType.includes("text/html")) {
+  const isHtml = contentType.includes("text/html");
+  const isTextLike =
+    isHtml ||
+    contentType.includes("javascript") ||
+    contentType.includes("json") ||
+    contentType.startsWith("text/");
+
+  if (!isTextLike) {
     return new Response(upstreamResponse.body, {
+      status: upstreamResponse.status,
+      statusText: upstreamResponse.statusText,
+      headers: responseHeaders,
+    });
+  }
+
+  const rawText = await upstreamResponse.text();
+  const rewrittenText = rewriteBodyText(rawText, targetOrigin, currentOrigin);
+
+  if (!isHtml) {
+    return new Response(rewrittenText, {
       status: upstreamResponse.status,
       statusText: upstreamResponse.statusText,
       headers: responseHeaders,
@@ -118,7 +149,7 @@ export async function onRequest(context) {
       },
     })
     .transform(
-      new Response(upstreamResponse.body, {
+      new Response(rewrittenText, {
         status: upstreamResponse.status,
         statusText: upstreamResponse.statusText,
         headers: responseHeaders,
