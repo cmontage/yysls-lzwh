@@ -30,6 +30,8 @@
         body,
         html {
             min-height: 100vh;
+            width: 100%;
+            max-width: 100%;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: var(--text-main);
             overflow-x: hidden;
@@ -81,8 +83,7 @@
 
         /* 玻璃拟物态卡片 */
         .card {
-            flex: 1;
-            min-width: 300px;
+            flex: 1 1 300px;
             max-width: 450px;
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
@@ -261,8 +262,8 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             z-index: 0;
             pointer-events: none;
         }
@@ -381,6 +382,27 @@
             z-index: 10;
             letter-spacing: 1px;
             pointer-events: none;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 1.5rem 1rem;
+            }
+            .card {
+                padding: 2.5rem 1.5rem;
+            }
+            .header-profile {
+                margin-top: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            .qr-wrapper {
+                width: 160px;
+                height: 160px;
+            }
         }
     </style>
 </head>
