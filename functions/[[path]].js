@@ -2,7 +2,7 @@ const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
 const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
-const PROXY_VERSION = "2026-04-03-v5";
+const PROXY_VERSION = "2026-04-03-v6";
 
 function rewriteToCustomDomain(raw, targetBaseUrl, currentOrigin) {
   if (!raw) return raw;
@@ -16,17 +16,24 @@ function rewriteToCustomDomain(raw, targetBaseUrl, currentOrigin) {
   }
 }
 
-function rewriteBodyText(content, targetOrigin, currentOrigin) {
-  const from = targetOrigin;
-  const to = currentOrigin.origin;
-  const fromEscaped = from.replace(/\//g, "\\/");
-  const toEscaped = to.replace(/\//g, "\\/");
-
+function replaceOriginInText(content, fromOrigin, toOrigin) {
+  if (!fromOrigin || fromOrigin === toOrigin) return content;
+  const fromEscaped = fromOrigin.replace(/\//g, "\\/");
+  const toEscaped = toOrigin.replace(/\//g, "\\/");
   return content
-    .split(from)
-    .join(to)
+    .split(fromOrigin)
+    .join(toOrigin)
     .split(fromEscaped)
     .join(toEscaped);
+}
+
+function rewriteBodyText(content, fromOrigins, currentOrigin) {
+  let out = content;
+  const toOrigin = currentOrigin.origin;
+  for (const fromOrigin of fromOrigins) {
+    out = replaceOriginInText(out, fromOrigin, toOrigin);
+  }
+  return out;
 }
 
 function normalizeHeadersAfterRewrite(headers) {
@@ -106,6 +113,7 @@ export async function onRequest(context) {
   });
 
   const upstreamResponse = await fetch(upstreamRequest);
+  const upstreamFinalOrigin = new URL(upstreamResponse.url).origin;
 
   const responseHeaders = new Headers(upstreamResponse.headers);
 
@@ -133,7 +141,11 @@ export async function onRequest(context) {
   }
 
   const rawText = await upstreamResponse.text();
-  const rewrittenText = rewriteBodyText(rawText, targetOrigin, currentOrigin);
+  const rewrittenText = rewriteBodyText(
+    rawText,
+    [targetOrigin, upstreamFinalOrigin],
+    currentOrigin
+  );
   normalizeHeadersAfterRewrite(responseHeaders);
 
   if (!isHtml) {
