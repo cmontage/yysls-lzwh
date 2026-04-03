@@ -1,4 +1,5 @@
-const SITE_TITLE = "落子无悔！";
+const SITE_TITLE_JS_ESCAPED = "\\u843d\\u5b50\\u65e0\\u6094\\uff01";
+const SITE_TITLE_META_ENTITY = "&#33853;&#23376;&#26080;&#24724;&#65281;";
 const DEFAULT_TARGET_URL =
   "https://ug.link/blackmyth/photo/share/?id=8&pagetype=share&uuid=88615bee-c594-4cc1-8826-252ae7bbb4ae";
 
@@ -106,17 +107,10 @@ export async function onRequest(context) {
     .on("iframe[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
     .on("source[src]", new UrlAttrRewriter("src", targetOrigin, currentOrigin))
     .on("form[action]", new UrlAttrRewriter("action", targetOrigin, currentOrigin))
-    .on("title", {
-      text(text) {
-        text.replace(SITE_TITLE);
-      },
-    })
     .on("head", {
       element(element) {
         element.append(
-          `<base href="${targetPathPrefix}" />\n<link rel="icon" href="/favicon.ico" />\n<meta name="apple-mobile-web-app-title" content="落子无悔！" />\n<script>(function(){var t=${JSON.stringify(
-            SITE_TITLE
-          )};function setMeta(){document.title=t;var icon=document.querySelector('link[rel~="icon"]');if(!icon){icon=document.createElement('link');icon.setAttribute('rel','icon');document.head.appendChild(icon);}icon.setAttribute('href','/favicon.ico');}setMeta();new MutationObserver(setMeta).observe(document.documentElement,{subtree:true,childList:true});})();</script>`,
+          `<base href="${targetPathPrefix}" />\n<link rel="icon" href="/favicon.ico" />\n<meta name="apple-mobile-web-app-title" content="${SITE_TITLE_META_ENTITY}" />\n<script>(function(){var t='${SITE_TITLE_JS_ESCAPED}';function setMeta(){document.title=t;var icon=document.querySelector('link[rel~="icon"]');if(!icon){icon=document.createElement('link');icon.setAttribute('rel','icon');document.head.appendChild(icon);}icon.setAttribute('href','/favicon.ico');}setMeta();new MutationObserver(setMeta).observe(document.documentElement,{subtree:true,childList:true});})();</script>`,
           { html: true }
         );
       },
