@@ -34,6 +34,7 @@
             color: var(--text-main);
             overflow-x: hidden;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
 
@@ -178,11 +179,13 @@
             height: 100%;
             border-radius: 12px;
             object-fit: cover;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+            cursor: zoom-in;
         }
 
-        .card:hover .qr-wrapper img {
-            transform: scale(1.05);
+        .qr-wrapper img:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 15px 25px rgba(0,0,0,0.5);
         }
 
         /* 优雅的按钮设计 */
@@ -263,6 +266,122 @@
             z-index: 0;
             pointer-events: none;
         }
+
+        /* 顶部社主信息 */
+        .header-profile {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+        }
+
+        .avatar-glow {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            padding: 4px;
+            background: linear-gradient(145deg, rgba(212, 175, 55, 0.4), rgba(0, 0, 0, 0.8));
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+            margin-bottom: 1.2rem;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+        }
+
+        .avatar-glow:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 25px rgba(212, 175, 55, 0.5), 0 0 40px var(--primary-glow);
+        }
+
+        .avatar-glow img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-info h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #d4af37, #fdf5e6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-info .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        /* 大图预览弹窗 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            cursor: zoom-out;
+        }
+
+        .modal img {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 40px var(--primary-glow);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: zoom-out;
+            z-index: 1001;
+        }
+
+        .modal.active img {
+            transform: scale(1);
+        }
+
+        /* 底部版权信息 */
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            z-index: 10;
+            letter-spacing: 1px;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -270,6 +389,16 @@
     <div class="top-glow"></div>
     <canvas id="particles-canvas"></canvas>
     <div id="cursor-glow"></div>
+
+    <div class="header-profile">
+        <div class="avatar-glow">
+            <img src="assets/deng.png" alt="社主（玄天斩灵）头像">
+        </div>
+        <div class="profile-info">
+            <h1>社主 · 玄天斩灵</h1>
+            <div class="subtitle">落子无悔百业</div>
+        </div>
+    </div>
 
     <div class="container">
         <!-- 分区一：二维码 -->
@@ -296,6 +425,16 @@
                     class="btn">进入相册探索</a>
             </div>
         </div>
+    </div>
+
+    <!-- 大图预览 Modal -->
+    <div id="image-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <img id="modal-img" src="" alt="大图预览">
+    </div>
+
+    <div class="footer">
+        &copy; 2026 CMontage. All rights reserved.
     </div>
 
     <script>
@@ -400,6 +539,23 @@
 
             initParticles();
             animateParticles();
+
+            // 扫码大图预览逻辑
+            const qrImg = document.getElementById('qr-img');
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-img');
+            const modalBackdrop = document.querySelector('.modal-backdrop');
+
+            if (qrImg && modal && modalImg) {
+                qrImg.addEventListener('click', () => {
+                    modalImg.src = qrImg.src;
+                    modal.classList.add('active');
+                });
+
+                const closeModal = () => modal.classList.remove('active');
+                modalBackdrop.addEventListener('click', closeModal);
+                modalImg.addEventListener('click', closeModal);
+            }
         });
     </script>
 </body>
