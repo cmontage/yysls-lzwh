@@ -75,21 +75,12 @@ export async function onRequest(context) {
     method: request.method,
     headers: upstreamHeaders,
     body: request.body,
-    redirect: "manual",
+    redirect: "follow",
   });
 
   const upstreamResponse = await fetch(upstreamRequest);
 
   const responseHeaders = new Headers(upstreamResponse.headers);
-
-  // Keep the custom domain visible by rewriting upstream redirects.
-  const location = responseHeaders.get("location");
-  if (location) {
-    responseHeaders.set(
-      "location",
-      rewriteToCustomDomain(location, targetOrigin, currentOrigin)
-    );
-  }
 
   // Remove frame restrictions that can break embedded resources.
   responseHeaders.delete("x-frame-options");
