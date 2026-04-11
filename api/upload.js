@@ -7,8 +7,8 @@ export default async function handler(req, res) {
         const { password, imageBase64, action } = req.body;
 
         // 获取环境变量配置
-        const ADMIN_PWD = process.env.ADMIN_PASSWORD || 'yysls666'; // 默认密码，建议在Vercel环境变量中配置
-        const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+        const ADMIN_PWD = process.env.ADMIN_PASSWORD; // 管理员密码，在Vercel环境变量中配置
+        const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // GitHub Token，在Vercel环境变量中配置
         const REPO = process.env.GITHUB_REPO || 'cmontage/yysls-lzwh';
         const BRANCH = 'main';
         const FILE_PATH = 'assets/vx-qr.png'; // 替换的目标文件
