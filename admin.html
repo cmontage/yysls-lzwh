@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>落子无悔 - 后台管理</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <!-- 使用现代字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- jsQR 用于智能识别和裁剪二维码 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+    <style>
+        :root {
+            --primary-glow: rgba(212, 175, 55, 0.4);
+            /* 暗金色发光 */
+            --glass-bg: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f5f5f7;
+            --text-muted: #a1a1a6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            min-height: 100vh;
+            width: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-main);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            /* 燕云十六声风格 */
+            background-image: linear-gradient(to bottom, rgba(5, 5, 5, 0.6), rgba(8, 12, 12, 0.95)), url('assets/yanyun_bg.png');
+            background-color: #030303;
+            background-size: 110% 110%;
+            background-position: center;
+            background-attachment: fixed;
+            animation: bgPan 40s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgPan {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .top-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.8), transparent);
+            z-index: 10;
+        }
+
+        .container {
+            display: flex;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* 玻璃拟物态卡片 */
+        .card {
+            flex: 1;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+            animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #d4af37, #fdf5e6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: 1px;
+        }
+
+        p.desc {
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        /* 上传框设计 */
+        .upload-area {
+            border: 2px dashed rgba(212, 175, 55, 0.4);
+            border-radius: 16px;
+            padding: 2rem 1rem;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #d4af37;
+            background: rgba(212, 175, 55, 0.05);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .preview-wrapper {
+            margin-top: 1rem;
+            width: 150px;
+            height: 150px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 1rem auto;
+            position: relative;
+            display: none;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .preview-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 输入框 */
+        input[type="password"] {
+            width: 100%;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text-main);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="password"]:focus {
+            border-color: #d4af37;
+        }
+
+        /* 按钮设计 */
+        .btn {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.1);
+            color: #d4af37;
+            text-decoration: none;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            width: 100%;
+            cursor: pointer;
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            color: #000;
+            border-color: #d4af37;
+            background: #d4af37;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* 动态提示信息 */
+        #msg, #login-msg {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            height: 20px;
+            color: #d4af37;
+            text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
+        }
+
+        .error { color: #ff4d4f !important; text-shadow: none !important; }
+        .success { color: #52c41a !important; text-shadow: none !important; }
+    </style>
+</head>
+
+<body>
+    <div class="top-glow"></div>
+    <div class="container">
+        <!-- 登录面板 -->
+        <div class="card" id="login-card">
+            <div class="card-icon">🔒</div>
+            <h2>管理员登录</h2>
+            <p class="desc">请输入后台管理密码验证身份</p>
+            <input type="password" id="login-password" placeholder="请输入管理员密码" />
+            <button class="btn" id="login-btn" onclick="verifyLogin()">进入系统</button>
+            <div id="login-msg"></div>
+        </div>
+
+        <!-- 管理面板 -->
+        <div class="card" id="manage-card" style="display: none;">
+            <div class="card-icon">⚙️</div>
+            <h2>二维码管理</h2>
+            <p class="desc">系统将自动识别图片中的二维码并裁剪为您省去排版烦恼。</p>
+
+            <div class="upload-area" id="drop-area">
+                <p id="upload-hint">点击或拖拽新二维码图像至此处 (.png, .jpg)</p>
+                <input type="file" id="fileElem" accept="image/png, image/jpeg" onchange="handleFiles(this.files)">
+                <div class="preview-wrapper" id="preview-wrapper">
+                    <img id="preview" src="" alt="预览图">
+                </div>
+            </div>
+            
+            <button class="btn" id="upload-btn" onclick="submitImage()">更新二维码</button>
+            <div id="msg"></div>
+        </div>
+    </div>
+
+    <script>
+        const loginCard = document.getElementById('login-card');
+        const manageCard = document.getElementById('manage-card');
+        const dropArea = document.getElementById('drop-area');
+        const fileElem = document.getElementById('fileElem');
+        const preview = document.getElementById('preview');
+        const previewWrapper = document.getElementById('preview-wrapper');
+        const hint = document.getElementById('upload-hint');
+        const msg = document.getElementById('msg');
+        const loginMsg = document.getElementById('login-msg');
+        let selectedFileBase64 = null;
+        let adminPassword = '';
+
+        // 登录验证
+        async function verifyLogin() {
+            const pwd = document.getElementById('login-password').value;
+            if (!pwd) {
+                showLoginMessage('请输入密码！', 'error');
+                return;
+            }
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.innerText = '验证中...';
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd, action: 'verify' })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    adminPassword = pwd;
+                    loginCard.style.display = 'none';
+                    manageCard.style.display = 'block';
+                } else {
+                    showLoginMessage(data.error || '密码错误', 'error');
+                }
+            } catch (err) {
+                showLoginMessage('网络错误: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '进入系统';
+            }
+        }
+
+        document.getElementById('login-password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') verifyLogin();
+        });
+
+        // 拖拽逻辑
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            handleFiles(e.dataTransfer.files);
+        });
+
+        dropArea.addEventListener('click', () => { fileElem.click(); });
+
+        // 核心图片处理与二维码解析裁剪
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            const file = files[0];
+            if (!file.type.startsWith('image/')) {
+                showMessage('请选择图片文件！', 'error');
+                return;
+            }
+            showMessage('正在解析...', '');
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // 读取到Canvas提取像素数据
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    // 解析二维码
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    
+                    let finalBase64 = e.target.result;
+
+                    if (code) {
+                        try {
+                            const loc = code.location;
+                            let minX = Math.min(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x);
+                            let maxX = Math.max(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x);
+                            let minY = Math.min(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y);
+                            let maxY = Math.max(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y);
+                            
+                            // 增加适当边距 (padding) 留白，防止裁剪太贴边
+                            const padding = 30; 
+                            minX = Math.max(0, minX - padding);
+                            minY = Math.max(0, minY - padding);
+                            maxX = Math.min(img.width, maxX + padding);
+                            maxY = Math.min(img.height, maxY + padding);
+
+                            const cropW = maxX - minX;
+                            const cropH = maxY - minY;
+
+                            const cropCanvas = document.createElement('canvas');
+                            cropCanvas.width = cropW;
+                            cropCanvas.height = cropH;
+                            const cropCtx = cropCanvas.getContext('2d');
+
+                            // 绘制裁剪区，加入白色背景防止透明PNG导致二维码扫不出
+                            cropCtx.fillStyle = '#FFFFFF';
+                            cropCtx.fillRect(0, 0, cropW, cropH);
+                            cropCtx.drawImage(img, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+                            finalBase64 = cropCanvas.toDataURL('image/png');
+                            showMessage('✅ 已自动识别并裁剪出二维码部分！', 'success');
+                        } catch(e) {
+                            console.error(e);
+                            showMessage('⚠️ 裁剪异常，准备使用原图上传。', 'error');
+                        }
+                    } else {
+                        showMessage('⚠️ 未检测到标准二维码，将保存原图（或因图片模糊）。', 'error');
+                    }
+
+                    selectedFileBase64 = finalBase64;
+                    preview.src = selectedFileBase64;
+                    previewWrapper.style.display = 'block';
+                    hint.style.display = 'none';
+                };
+                img.src = e.target.result;
+            }
+        }
+
+        async function submitImage() {
+            if (!selectedFileBase64) {
+                showMessage('请先选择或拖拽图片！', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('upload-btn');
+            btn.disabled = true;
+            btn.innerText = '稍候，正在部署同步至GitHub...';
+            showMessage('同步中...', '');
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        password: adminPassword,
+                        imageBase64: selectedFileBase64
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    showMessage(data.message, 'success');
+                    setTimeout(() => {
+                        selectedFileBase64 = null;
+                        previewWrapper.style.display = 'none';
+                        hint.style.display = 'block';
+                        preview.src = '';
+                    }, 5000);
+                } else {
+                    showMessage(data.error || '上传失败', 'error');
+                }
+            } catch (err) {
+                showMessage('网络错误，请稍后再试: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '更新二维码';
+            }
+        }
+
+        function showMessage(text, typeClass) {
+            msg.innerText = text;
+            msg.className = typeClass;
+        }
+
+        function showLoginMessage(text, typeClass) {
+            loginMsg.innerText = text;
+            loginMsg.className = typeClass;
+        }
+    </script>
+</body>
+</html>

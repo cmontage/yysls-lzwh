@@ -404,10 +404,39 @@
                 height: 160px;
             }
         }
+
+        /* 后台入口按钮 */
+        .admin-entry-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            text-decoration: none;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .admin-entry-btn:hover {
+            color: #d4af37;
+            border-color: rgba(212, 175, 55, 0.5);
+            background: rgba(212, 175, 55, 0.1);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
     </style>
 </head>
 
 <body>
+    <!-- 后台管理入口 -->
+    <a href="/admin.html" class="admin-entry-btn">后台管理</a>
+
     <div class="top-glow"></div>
     <canvas id="particles-canvas"></canvas>
     <div id="cursor-glow"></div>
