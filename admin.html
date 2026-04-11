@@ -9,7 +9,7 @@
     <!-- 使用现代字体 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <!-- jsQR 用于智能识别和裁剪二维码 -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://gcore.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <style>
         :root {
@@ -340,18 +340,39 @@
                     ctx.drawImage(img, 0, 0, img.width, img.height);
                     
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    // 解析二维码
-                    const code = jsQR(imageData.data, imageData.width, imageData.height);
                     
+                    // 解析二维码（支持原比例与多重缩放扫描，提高各类模糊与大尺寸海报的识别率）
+                    let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+                    let scale = 1;
+
+                    // 若原比例未能识别，尝试以较小比例扫描（很多大图含有小尺寸二维码或高密噪点导致识别失败）
+                    if (!code) {
+                        const scales = [0.5, 0.25, 0.125];
+                        for (let s of scales) {
+                            const scCvs = document.createElement('canvas');
+                            scCvs.width = Math.floor(img.width * s);
+                            scCvs.height = Math.floor(img.height * s);
+                            const scCtx = scCvs.getContext('2d');
+                            scCtx.drawImage(img, 0, 0, scCvs.width, scCvs.height);
+                            const scData = scCtx.getImageData(0, 0, scCvs.width, scCvs.height);
+                            code = jsQR(scData.data, scData.width, scData.height, { inversionAttempts: "attemptBoth" });
+                            if (code) {
+                                scale = s;
+                                break;
+                            }
+                        }
+                    }
+
                     let finalBase64 = e.target.result;
 
                     if (code) {
                         try {
                             const loc = code.location;
-                            let minX = Math.min(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x);
-                            let maxX = Math.max(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x);
-                            let minY = Math.min(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y);
-                            let maxY = Math.max(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y);
+                            // 注意如果是在缩放的画布上识别到的坐标，需要通过除以scale还原到原图大小
+                            let minX = Math.min(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x) / scale;
+                            let maxX = Math.max(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x) / scale;
+                            let minY = Math.min(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y) / scale;
+                            let maxY = Math.max(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y) / scale;
                             
                             // 增加适当边距 (padding) 留白，防止裁剪太贴边
                             const padding = 30; 
