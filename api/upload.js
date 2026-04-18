@@ -138,7 +138,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: `GitHub API 错误: ${putErrorMessage}` });
         }
 
-        return res.status(200).json({ success: true, message: '二维码更新成功！Vercel 正在自动重新部署，约 1-2 分钟后生效。' });
+        return res.status(200).json({ success: true, message: '二维码更新成功！约 1-2 分钟后生效。' });
 
     } catch (err) {
         console.error('Server Error:', err);
