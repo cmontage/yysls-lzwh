@@ -4,251 +4,574 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>落子无悔 - 后台管理</title>
+    <title>落子无悔 — 后台管理</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <!-- 使用现代字体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- 现代无衬线字体与排版优化 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <!-- jsQR 用于智能识别和裁剪二维码 -->
     <script src="https://gcore.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
     <style>
         :root {
-            --primary-glow: rgba(212, 175, 55, 0.4);
-            /* 暗金色发光 */
-            --glass-bg: rgba(20, 20, 20, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text-main: #f5f5f7;
-            --text-muted: #a1a1a6;
+            --bg-base: #030304;
+            --surface: rgba(18, 18, 22, 0.7);
+            --surface-hover: rgba(26, 26, 32, 0.9);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.25);
+            --border-active: rgba(255, 255, 255, 0.4);
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-muted: #55555c;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        body, html {
-            min-height: 100vh;
+        html, body {
             width: 100%;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            color: var(--text-main);
+            min-height: 100vh;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 15px;
+            line-height: 1.5;
+            letter-spacing: -0.01em;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             overflow-x: hidden;
+            position: relative;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button {
+            font-family: inherit;
+            color: inherit;
+            background: none;
+            border: 0;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        @media (pointer: fine) {
+            body { cursor: none; }
+            a, button, input, [role="button"], .interactive { cursor: none !important; }
+        }
+
+        .label {
+            font-size: 0.72rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+        }
+
+        /* 胶片颗粒噪点层 */
+        .noise-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 99;
+            opacity: 0.035;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* 背景氛围层 */
+        .bg-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle at 50% 30%, rgba(5, 7, 10, 0.4) 0%, rgba(2, 2, 3, 0.95) 75%),
+                              url('assets/yanyun_bg.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.22;
+            filter: contrast(120%) brightness(50%) grayscale(30%);
+        }
+
+        /* 跟随光标 */
+        #cursor-dot, #cursor-circle {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 9999;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #cursor-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #ffffff;
+        }
+
+        #cursor-circle {
+            width: 38px;
+            height: 38px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            transition: width 0.25s var(--ease-out-expo), height 0.25s var(--ease-out-expo), background-color 0.25s ease, border-color 0.25s ease, opacity 0.3s ease;
+        }
+
+        body.cursor-hover #cursor-circle {
+            width: 58px;
+            height: 58px;
+            border-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.08);
+            backdrop-filter: invert(15%);
+        }
+
+        @media (pointer: coarse) {
+            #cursor-dot, #cursor-circle { display: none !important; }
+        }
+
+        /* 视口框架 */
+        .viewport-frame {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            pointer-events: none;
+            padding: clamp(20px, 3.5vw, 40px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .frame-top, .frame-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .frame-item { pointer-events: auto; }
+
+        .pill-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            padding: 8px 18px;
+            border-radius: 999px;
+            border: 1px solid var(--border-subtle);
+            background: rgba(10, 10, 12, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: var(--text-primary);
+            transition: all 0.35s var(--ease-out-expo);
+        }
+
+        .pill-btn:hover {
+            border-color: #ffffff;
+            background: #ffffff;
+            color: #000000;
+            transform: translateY(-1px);
+        }
+
+        .pill-btn-solid {
+            background: #ffffff;
+            color: #000000;
+            border-color: #ffffff;
+            width: 100%;
+            justify-content: center;
+            padding: 14px 24px;
+            font-size: 0.78rem;
+        }
+
+        .pill-btn-solid:hover {
+            background: rgba(255, 255, 255, 0.88);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
+        }
+
+        .pill-btn:disabled, .pill-btn-solid:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* 主体布局 */
+        .main-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 100px 24px;
+        }
+
+        .admin-card {
+            max-width: 520px;
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 44px 38px;
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.03);
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.3s ease;
+            animation: cardEntrance 0.8s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes cardEntrance {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .admin-card-header {
+            margin-bottom: 28px;
+        }
+
+        .admin-title {
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: #ffffff;
+            margin-top: 8px;
+            margin-bottom: 6px;
+        }
+
+        .admin-desc {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* 输入框体系 */
+        .input-group {
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .clean-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            color: var(--text-primary);
+            padding: 14px 18px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.25s ease, background 0.25s ease;
+            caret-color: #ffffff;
+        }
+
+        .clean-input:focus {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .clean-input::placeholder {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* 拖拽上传区域 */
+        .upload-drop-zone {
+            border: 1px dashed var(--border-subtle);
+            border-radius: 16px;
+            padding: 32px 20px;
+            background: rgba(0, 0, 0, 0.25);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 24px;
+            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-
-            /* 燕云十六声风格 */
-            background-image: linear-gradient(to bottom, rgba(5, 5, 5, 0.6), rgba(8, 12, 12, 0.95)), url('assets/yanyun_bg.jpg');
-            background-color: #030303;
-            background-size: 110% 110%;
-            background-position: center;
-            background-attachment: fixed;
-            animation: bgPan 40s ease-in-out infinite alternate;
         }
 
-        @keyframes bgPan {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 100% 50%; }
+        .upload-drop-zone:hover, .upload-drop-zone.dragover {
+            border-color: rgba(255, 255, 255, 0.45);
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateY(-2px);
         }
 
-        .top-glow {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.8), transparent);
-            z-index: 10;
+        .upload-drop-zone input[type="file"] {
+            display: none;
         }
 
-        .container {
+        .upload-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-subtle);
             display: flex;
-            padding: 2rem;
-            max-width: 600px;
-            width: 100%;
+            align-items: center;
             justify-content: center;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+            transition: transform 0.3s var(--ease-out-expo);
         }
 
-        /* 玻璃拟物态卡片 */
-        .card {
-            flex: 1;
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 3rem 2rem;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
-            animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        .upload-drop-zone:hover .upload-icon {
+            transform: scale(1.1);
         }
 
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+        .upload-text {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
         }
 
-        .card-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            background: linear-gradient(135deg, #d4af37, #fdf5e6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        h2 {
-            font-size: 1.6rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
-            letter-spacing: 1px;
-        }
-
-        p.desc {
+        .upload-subtext {
+            font-size: 0.72rem;
             color: var(--text-muted);
-            margin-bottom: 2rem;
-            font-size: 0.95rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
 
-        /* 上传框设计 */
-        .upload-area {
-            border: 2px dashed rgba(212, 175, 55, 0.4);
-            border-radius: 16px;
-            padding: 2rem 1rem;
-            margin-bottom: 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        .upload-area:hover, .upload-area.dragover {
-            border-color: #d4af37;
-            background: rgba(212, 175, 55, 0.05);
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
-        }
-
-        .upload-area input[type="file"] {
+        /* 预览框 */
+        .preview-box {
             display: none;
-        }
-
-        .preview-wrapper {
-            margin-top: 1rem;
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             border-radius: 12px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 1rem auto;
+            padding: 8px;
+            background: #ffffff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+            margin: 14px auto 0;
             position: relative;
-            display: none;
             overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        .preview-wrapper img {
+        .preview-box img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            border-radius: 6px;
+            display: block;
         }
 
-        /* 输入框 */
-        input[type="password"] {
-            width: 100%;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: var(--text-main);
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            font-size: 1rem;
-            margin-bottom: 1.5rem;
-            outline: none;
-            transition: border-color 0.3s ease;
+        /* 状态与通知消息 */
+        .status-msg {
+            min-height: 24px;
+            margin-top: 16px;
+            font-size: 0.8rem;
+            text-align: center;
+            letter-spacing: 0.04em;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
-        input[type="password"]:focus {
-            border-color: #d4af37;
+        .status-msg.error {
+            color: var(--accent-red);
         }
 
-        /* 按钮设计 */
-        .btn {
-            display: inline-block;
-            background: rgba(212, 175, 55, 0.1);
-            color: #d4af37;
-            text-decoration: none;
-            padding: 1rem 2.5rem;
-            border-radius: 50px;
-            font-weight: 600;
-            border: 1px solid rgba(212, 175, 55, 0.4);
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-            width: 100%;
-            cursor: pointer;
-            font-size: 1rem;
-            position: relative;
-            overflow: hidden;
+        .status-msg.success {
+            color: var(--accent-green);
         }
 
-        .btn:hover {
-            color: #000;
-            border-color: #d4af37;
-            background: #d4af37;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        /* 移动端适配 */
+        @media (max-width: 600px) {
+            .viewport-frame {
+                position: static;
+                padding: 20px 20px 0;
+            }
+            .frame-bottom {
+                padding: 30px 20px;
+                text-align: center;
+                justify-content: center;
+            }
+            .main-wrapper {
+                padding: 30px 18px;
+                min-height: auto;
+            }
+            .admin-card {
+                padding: 32px 24px;
+            }
         }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-        /* 动态提示信息 */
-        #msg, #login-msg {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            height: 20px;
-            color: #d4af37;
-            text-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
-        }
-
-        .error { color: #ff4d4f !important; text-shadow: none !important; }
-        .success { color: #52c41a !important; text-shadow: none !important; }
     </style>
 </head>
 
 <body>
-    <div class="top-glow"></div>
-    <div class="container">
-        <!-- 登录面板 -->
-        <div class="card" id="login-card">
-            <div class="card-icon">🔒</div>
-            <h2>管理员登录</h2>
-            <p class="desc">请输入后台管理密码验证身份</p>
-            <input type="password" id="login-password" placeholder="请输入管理员密码" />
-            <button class="btn" id="login-btn" onclick="verifyLogin()">进入系统</button>
-            <div id="login-msg"></div>
+    <!-- 胶片颗粒滤镜 -->
+    <div class="noise-layer" aria-hidden="true"></div>
+
+    <!-- 燕云暗调背景 -->
+    <div class="bg-backdrop" aria-hidden="true"></div>
+
+    <!-- 自定义跟随光标 -->
+    <div id="cursor-dot"></div>
+    <div id="cursor-circle"></div>
+
+    <!-- 视口框架 -->
+    <div class="viewport-frame">
+        <div class="frame-top">
+            <div class="frame-item">
+                <a href="/" class="pill-btn interactive">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 5H1M1 5L5 9M1 5L5 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Back to Home</span>
+                </a>
+            </div>
+            <div class="frame-item">
+                <span class="label mono">ADMIN CONSOLE</span>
+            </div>
         </div>
 
-        <!-- 管理面板 -->
-        <div class="card" id="manage-card" style="display: none;">
-            <div class="card-icon">⚙️</div>
-            <h2>二维码管理</h2>
-            <p class="desc">系统将自动识别图片中的二维码并裁剪为您省去排版烦恼。</p>
-
-            <div class="upload-area" id="drop-area">
-                <p id="upload-hint">点击或拖拽新二维码图像至此处 (.png, .jpg)</p>
-                <input type="file" id="fileElem" accept="image/png, image/jpeg" onchange="handleFiles(this.files)">
-                <div class="preview-wrapper" id="preview-wrapper">
-                    <img id="preview" src="" alt="预览图">
-                </div>
+        <div class="frame-bottom">
+            <div class="frame-item">
+                <span class="label mono">落子无悔百业 · 管理系统</span>
             </div>
-            
-            <button class="btn" id="upload-btn" onclick="submitImage()">更新二维码</button>
-            <div id="msg"></div>
+            <div class="frame-item">
+                <span class="label mono">© 2026 CMONTAGE</span>
+            </div>
         </div>
     </div>
 
+    <!-- 主面板 -->
+    <main class="main-wrapper">
+        <!-- 登录面板 -->
+        <section class="admin-card" id="login-card">
+            <div class="admin-card-header">
+                <span class="label mono">00 / AUTHENTICATION</span>
+                <h1 class="admin-title">管理员身份验证</h1>
+                <p class="admin-desc">请输入管理员安全密钥以进入社群二维码维护系统。</p>
+            </div>
+
+            <div class="input-group">
+                <label for="login-password" class="input-label mono">SECURITY KEY</label>
+                <input type="password" 
+                       id="login-password" 
+                       class="clean-input interactive" 
+                       placeholder="请输入管理员密码..." 
+                       autocomplete="current-password">
+            </div>
+
+            <button type="button" class="pill-btn-solid pill-btn interactive" id="login-btn" onclick="verifyLogin()">
+                <span>进入管理系统</span>
+            </button>
+
+            <div id="login-msg" class="status-msg mono"></div>
+        </section>
+
+        <!-- 管理面板 (验证成功后显示) -->
+        <section class="admin-card" id="manage-card" style="display: none;">
+            <div class="admin-card-header">
+                <span class="label mono">01 / QR CODE MANAGEMENT</span>
+                <h1 class="admin-title">更新微信二维码</h1>
+                <p class="admin-desc">内置智能识别引擎，可自动扫描并裁剪海报中的二维码部分，消除排版繁琐。</p>
+            </div>
+
+            <div class="upload-drop-zone interactive" id="drop-area">
+                <div class="upload-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                </div>
+                <p class="upload-text" id="upload-hint">点击或拖拽微信群二维码至此区域</p>
+                <p class="upload-subtext mono">SUPPORTS PNG, JPG, WEBP</p>
+                <input type="file" id="fileElem" accept="image/png, image/jpeg, image/webp" onchange="handleFiles(this.files)">
+                
+                <div class="preview-box" id="preview-wrapper">
+                    <img id="preview" src="" alt="裁剪后二维码预览">
+                </div>
+            </div>
+
+            <button type="button" class="pill-btn-solid pill-btn interactive" id="upload-btn" onclick="submitImage()">
+                <span>同步并部署至 GitHub</span>
+            </button>
+
+            <div id="msg" class="status-msg mono"></div>
+        </section>
+    </main>
+
     <script>
+        // 自定义微动效光标
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorCircle = document.getElementById('cursor-circle');
+        let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+        let circleX = mouseX, circleY = mouseY;
+        let isCursorActive = false;
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            if (!isCursorActive) {
+                isCursorActive = true;
+                cursorDot.style.opacity = '1';
+                cursorCircle.style.opacity = '1';
+            }
+            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
+        });
+
+        window.addEventListener('mouseleave', () => {
+            isCursorActive = false;
+            cursorDot.style.opacity = '0';
+            cursorCircle.style.opacity = '0';
+        });
+
+        function renderCursor() {
+            circleX += (mouseX - circleX) * 0.18;
+            circleY += (mouseY - circleY) * 0.18;
+            cursorCircle.style.transform = `translate(${circleX}px, ${circleY}px)`;
+            requestAnimationFrame(renderCursor);
+        }
+        renderCursor();
+
+        const interactiveElements = document.querySelectorAll('.interactive, a, button, input');
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+            el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+        });
+
+        // 核心管理逻辑
         const loginCard = document.getElementById('login-card');
         const manageCard = document.getElementById('manage-card');
         const dropArea = document.getElementById('drop-area');
@@ -270,7 +593,7 @@
             }
             const btn = document.getElementById('login-btn');
             btn.disabled = true;
-            btn.innerText = '验证中...';
+            btn.innerHTML = '<span>验证中...</span>';
             try {
                 const res = await fetch('/api/upload', {
                     method: 'POST',
@@ -281,7 +604,7 @@
                 if (res.ok) {
                     adminPassword = pwd;
                     loginCard.style.display = 'none';
-                    manageCard.style.display = 'block';
+                    manageCard.style.display = 'flex';
                 } else {
                     showLoginMessage(data.error || '密码错误', 'error');
                 }
@@ -289,7 +612,7 @@
                 showLoginMessage('网络错误: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerText = '进入系统';
+                btn.innerHTML = '<span>进入管理系统</span>';
             }
         }
 
@@ -317,22 +640,21 @@
 
         dropArea.addEventListener('click', () => { fileElem.click(); });
 
-        // 核心图片处理与二维码解析裁剪
+        // 智能图片识别与裁剪
         function handleFiles(files) {
             if (files.length === 0) return;
             const file = files[0];
             if (!file.type.startsWith('image/')) {
-                showMessage('请选择图片文件！', 'error');
+                showMessage('请选择有效的图片文件！', 'error');
                 return;
             }
-            showMessage('正在解析...', '');
+            showMessage('正在智能解析二维码...', '');
 
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = function(e) {
                 const img = new Image();
                 img.onload = function() {
-                    // 读取到Canvas提取像素数据
                     const canvas = document.createElement('canvas');
                     canvas.width = img.width;
                     canvas.height = img.height;
@@ -340,12 +662,10 @@
                     ctx.drawImage(img, 0, 0, img.width, img.height);
                     
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    // 解析二维码（支持原比例与多重缩放扫描，提高各类模糊与大尺寸海报的识别率）
                     let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
                     let scale = 1;
 
-                    // 若原比例未能识别，尝试以较小比例扫描（很多大图含有小尺寸二维码或高密噪点导致识别失败）
+                    // 多重缩放检测
                     if (!code) {
                         const scales = [0.5, 0.25, 0.125];
                         for (let s of scales) {
@@ -368,13 +688,11 @@
                     if (code) {
                         try {
                             const loc = code.location;
-                            // 注意如果是在缩放的画布上识别到的坐标，需要通过除以scale还原到原图大小
                             let minX = Math.min(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x) / scale;
                             let maxX = Math.max(loc.topLeftCorner.x, loc.bottomLeftCorner.x, loc.topRightCorner.x, loc.bottomRightCorner.x) / scale;
                             let minY = Math.min(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y) / scale;
                             let maxY = Math.max(loc.topLeftCorner.y, loc.topRightCorner.y, loc.bottomLeftCorner.y, loc.bottomRightCorner.y) / scale;
                             
-                            // 增加适当边距 (padding) 留白，防止裁剪太贴边
                             const padding = 30; 
                             minX = Math.max(0, minX - padding);
                             minY = Math.max(0, minY - padding);
@@ -389,19 +707,18 @@
                             cropCanvas.height = cropH;
                             const cropCtx = cropCanvas.getContext('2d');
 
-                            // 绘制裁剪区，加入白色背景防止透明PNG导致二维码扫不出
                             cropCtx.fillStyle = '#FFFFFF';
                             cropCtx.fillRect(0, 0, cropW, cropH);
                             cropCtx.drawImage(img, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
 
                             finalBase64 = cropCanvas.toDataURL('image/png');
-                            showMessage('✅ 已自动识别并裁剪出二维码部分！', 'success');
-                        } catch(e) {
-                            console.error(e);
-                            showMessage('⚠️ 裁剪异常，准备使用原图上传。', 'error');
+                            showMessage('✓ 已识别并精确裁剪出二维码', 'success');
+                        } catch(err) {
+                            console.error(err);
+                            showMessage('! 裁剪异常，使用原图上传', 'error');
                         }
                     } else {
-                        showMessage('⚠️ 未检测到标准二维码，将保存原图（或因图片模糊）。', 'error');
+                        showMessage('未检测到标准二维码，将保存原图', '');
                     }
 
                     selectedFileBase64 = finalBase64;
@@ -421,7 +738,7 @@
 
             const btn = document.getElementById('upload-btn');
             btn.disabled = true;
-            btn.innerText = '稍候，正在部署同步至GitHub...';
+            btn.innerHTML = '<span>正在部署同步至 GitHub...</span>';
             showMessage('同步中...', '');
 
             try {
@@ -436,7 +753,7 @@
 
                 const data = await res.json();
                 if (res.ok) {
-                    showMessage(data.message, 'success');
+                    showMessage(data.message || '✓ 更新成功', 'success');
                     setTimeout(() => {
                         selectedFileBase64 = null;
                         previewWrapper.style.display = 'none';
@@ -450,19 +767,20 @@
                 showMessage('网络错误，请稍后再试: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerText = '更新二维码';
+                btn.innerHTML = '<span>同步并部署至 GitHub</span>';
             }
         }
 
         function showMessage(text, typeClass) {
             msg.innerText = text;
-            msg.className = typeClass;
+            msg.className = 'status-msg mono ' + (typeClass || '');
         }
 
         function showLoginMessage(text, typeClass) {
             loginMsg.innerText = text;
-            loginMsg.className = typeClass;
+            loginMsg.className = 'status-msg mono ' + (typeClass || '');
         }
     </script>
 </body>
+
 </html>
