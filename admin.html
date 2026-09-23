@@ -1299,6 +1299,28 @@
             }
         }
 
+        const localAvatarCache = new Map();
+
+        // 智能头像加载容灾与 CDN 降级，彻底解决 Vercel 静态重新构建部署期间的延迟与 404 问题
+        function handleAvatarLoadError(img, originalPath) {
+            if (!img) return;
+            // 阶梯 1: 若刚上传到 assets/members/，因 Vercel 静态重新构建需要 1-2 分钟，先尝试直连 GitHub Raw 镜像
+            if (originalPath && originalPath.startsWith('assets/members/') && !img.dataset.retried) {
+                img.dataset.retried = '1';
+                img.src = `https://raw.githubusercontent.com/cmontage/yysls-lzwh/main/${originalPath}`;
+                return;
+            }
+            // 阶梯 2: 若 GitHub Raw 受限，尝试 jsDelivr CDN 加速镜像
+            if (originalPath && originalPath.startsWith('assets/members/') && img.dataset.retried === '1') {
+                img.dataset.retried = '2';
+                img.src = `https://cdn.jsdelivr.net/gh/cmontage/yysls-lzwh@main/${originalPath}`;
+                return;
+            }
+            // 终极兜底：采用高质感中性侠客头像矢量剪影，绝对不再误展示为老登头像
+            img.onerror = null;
+            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='1.5'%3E%3Ccircle cx='12' cy='8' r='5'/%3E%3Cpath d='M20 21a8 8 0 1 0-16 0'/%3E%3C/svg%3E";
+        }
+
         // 渲染社员列表
         function renderMembersList(members) {
             const listContainer = document.getElementById('members-list-container');
@@ -1317,10 +1339,11 @@
                 item.className = 'member-item';
                 
                 const dateStr = member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '';
+                const avatarSrc = localAvatarCache.get(member.id) || member.avatar;
                 
                 item.innerHTML = `
                     <div class="member-info">
-                        <img src="${member.avatar}" alt="${member.name}" class="member-avatar-thumb" onerror="this.src='assets/deng.png'">
+                        <img src="${avatarSrc}" alt="${escapeHtml(member.name)}" class="member-avatar-thumb" onerror="handleAvatarLoadError(this, '${escapeHtml(member.avatar)}')">
                         <div class="member-details">
                             <span class="member-name">${escapeHtml(member.name)}</span>
                             <span class="member-date mono">${dateStr ? dateStr : '社员'}</span>
@@ -1460,6 +1483,16 @@
                 const data = await res.json();
                 if (res.ok) {
                     showMemberMessage(data.message || '✓ 社员添加成功！', 'success');
+
+                    // 乐观写入本地缓存：若有上传头像，立即在列表中展示，无需等待网络部署延迟
+                    if (data.member && data.member.id) {
+                        if (selectedMemberAvatarBase64) {
+                            localAvatarCache.set(data.member.id, selectedMemberAvatarBase64);
+                        } else if (avatarUrl) {
+                            localAvatarCache.set(data.member.id, avatarUrl);
+                        }
+                    }
+
                     nameInput.value = '';
                     urlInput.value = '';
                     selectedMemberAvatarBase64 = null;
