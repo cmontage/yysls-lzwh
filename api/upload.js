@@ -81,6 +81,192 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: '服务端未配置 GITHUB_TOKEN 环境变量，无法提交代码！' });
         }
 
+        const MEMBERS_FILE_PATH = 'members.json';
+
+        // 1. 获取社员列表
+        if (action === 'get-members') {
+            const getUrl = `https://api.github.com/repos/${REPO}/contents/${MEMBERS_FILE_PATH}?ref=${BRANCH}`;
+            let authScheme = 'token';
+            const getResult = await githubRequestWithAuthFallback(getUrl, { method: 'GET' }, GITHUB_TOKEN, authScheme);
+            const getRes = getResult.response;
+
+            if (getRes.ok) {
+                const data = await getRes.json();
+                const content = Buffer.from(data.content, 'base64').toString('utf8');
+                let members = [];
+                try {
+                    members = JSON.parse(content);
+                } catch (e) {
+                    members = [];
+                }
+                return res.status(200).json({ success: true, members });
+            } else if (getRes.status === 404) {
+                return res.status(200).json({ success: true, members: [] });
+            } else {
+                const getErrorMessage = await readGitHubErrorMessage(getRes);
+                return res.status(500).json({ error: `读取社员列表失败: ${getErrorMessage}` });
+            }
+        }
+
+        // 2. 添加社员
+        if (action === 'add-member') {
+            const { name, avatarBase64, avatarUrl } = req.body;
+            if (!name || !name.trim()) {
+                return res.status(400).json({ error: '社员昵称不能为空！' });
+            }
+
+            let avatarPath = '';
+            let authScheme = 'token';
+
+            // 如果提供了 base64 图片，先将头像图片上传到 assets/members/
+            if (avatarBase64) {
+                const cleanBase64 = avatarBase64.replace(/^data:image\/\w+;base64,/, '');
+                const extMatch = avatarBase64.match(/^data:image\/(\w+);base64,/);
+                let ext = 'webp';
+                if (extMatch && (extMatch[1] === 'png' || extMatch[1] === 'jpeg' || extMatch[1] === 'webp')) {
+                    ext = extMatch[1] === 'jpeg' ? 'jpg' : extMatch[1];
+                }
+
+                const filename = `mem_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.${ext}`;
+                const imageFilePath = `assets/members/${filename}`;
+
+                const putImgUrl = `https://api.github.com/repos/${REPO}/contents/${imageFilePath}`;
+                const putImgResult = await githubRequestWithAuthFallback(putImgUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `Upload member avatar: ${name.trim()} via Admin`,
+                        content: cleanBase64,
+                        branch: BRANCH
+                    })
+                }, GITHUB_TOKEN, authScheme);
+
+                if (!putImgResult.response.ok) {
+                    const imgErrMsg = await readGitHubErrorMessage(putImgResult.response);
+                    return res.status(500).json({ error: `上传社员头像图片失败: ${imgErrMsg}` });
+                }
+
+                avatarPath = imageFilePath;
+            } else if (avatarUrl && avatarUrl.trim()) {
+                avatarPath = avatarUrl.trim();
+            } else {
+                return res.status(400).json({ error: '请上传头像图片或输入网络图片 URL！' });
+            }
+
+            // 读取最新的 members.json
+            const getMembersUrl = `https://api.github.com/repos/${REPO}/contents/${MEMBERS_FILE_PATH}?ref=${BRANCH}`;
+            const getMembersResult = await githubRequestWithAuthFallback(getMembersUrl, { method: 'GET' }, GITHUB_TOKEN, authScheme);
+            const getMembersRes = getMembersResult.response;
+
+            let currentMembers = [];
+            let membersSha = undefined;
+
+            if (getMembersRes.ok) {
+                const data = await getMembersRes.json();
+                membersSha = data.sha;
+                try {
+                    const content = Buffer.from(data.content, 'base64').toString('utf8');
+                    currentMembers = JSON.parse(content);
+                } catch (e) {
+                    currentMembers = [];
+                }
+            } else if (getMembersRes.status !== 404) {
+                const getErrorMessage = await readGitHubErrorMessage(getMembersRes);
+                return res.status(500).json({ error: `读取现有社员列表失败: ${getErrorMessage}` });
+            }
+
+            const newMember = {
+                id: `mem_${Date.now()}`,
+                name: name.trim(),
+                avatar: avatarPath,
+                createdAt: new Date().toISOString()
+            };
+            currentMembers.unshift(newMember);
+
+            // 提交更新后的 members.json
+            const putMembersUrl = `https://api.github.com/repos/${REPO}/contents/${MEMBERS_FILE_PATH}`;
+            const newContentBase64 = Buffer.from(JSON.stringify(currentMembers, null, 2), 'utf8').toString('base64');
+            const putMembersResult = await githubRequestWithAuthFallback(putMembersUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: `Add guild member: ${newMember.name} via Admin Dashboard`,
+                    content: newContentBase64,
+                    branch: BRANCH,
+                    sha: membersSha
+                })
+            }, GITHUB_TOKEN, authScheme);
+
+            if (!putMembersResult.response.ok) {
+                const membersErrMsg = await readGitHubErrorMessage(putMembersResult.response);
+                return res.status(500).json({ error: `更新社员名册失败: ${membersErrMsg}` });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: `社员「${newMember.name}」添加成功！`,
+                member: newMember,
+                members: currentMembers
+            });
+        }
+
+        // 3. 删除社员
+        if (action === 'delete-member') {
+            const { memberId } = req.body;
+            if (!memberId) {
+                return res.status(400).json({ error: '缺少要删除的社员 ID！' });
+            }
+
+            let authScheme = 'token';
+            const getMembersUrl = `https://api.github.com/repos/${REPO}/contents/${MEMBERS_FILE_PATH}?ref=${BRANCH}`;
+            const getMembersResult = await githubRequestWithAuthFallback(getMembersUrl, { method: 'GET' }, GITHUB_TOKEN, authScheme);
+            const getMembersRes = getMembersResult.response;
+
+            if (!getMembersRes.ok) {
+                const getErrorMessage = await readGitHubErrorMessage(getMembersRes);
+                return res.status(500).json({ error: `无法读取社员列表以执行删除: ${getErrorMessage}` });
+            }
+
+            const data = await getMembersRes.json();
+            const membersSha = data.sha;
+            let currentMembers = [];
+            try {
+                const content = Buffer.from(data.content, 'base64').toString('utf8');
+                currentMembers = JSON.parse(content);
+            } catch (e) {
+                currentMembers = [];
+            }
+
+            const targetMember = currentMembers.find(m => m.id === memberId);
+            const updatedMembers = currentMembers.filter(m => m.id !== memberId);
+
+            // 提交更新后的 members.json
+            const putMembersUrl = `https://api.github.com/repos/${REPO}/contents/${MEMBERS_FILE_PATH}`;
+            const newContentBase64 = Buffer.from(JSON.stringify(updatedMembers, null, 2), 'utf8').toString('base64');
+            const putMembersResult = await githubRequestWithAuthFallback(putMembersUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: `Delete member ${targetMember ? targetMember.name : memberId} via Admin Dashboard`,
+                    content: newContentBase64,
+                    branch: BRANCH,
+                    sha: membersSha
+                })
+            }, GITHUB_TOKEN, authScheme);
+
+            if (!putMembersResult.response.ok) {
+                const membersErrMsg = await readGitHubErrorMessage(putMembersResult.response);
+                return res.status(500).json({ error: `更新社员名册失败: ${membersErrMsg}` });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: `社员已成功删除！`,
+                members: updatedMembers
+            });
+        }
+
+        // ================= 4. 原有微信二维码上传逻辑 =================
         if (!imageBase64) {
             return res.status(400).json({ error: '缺少 imageBase64，无法上传二维码图片。' });
         }
