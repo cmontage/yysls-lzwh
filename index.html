@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>落子无悔 — 燕云十六声 · 百业社群</title>
+    <title>落子无悔 · 燕云十六声</title>
     <meta name="description" content="落子无悔百业社群官方主页。查看精彩瞬间摄影集与官方微信交流群。">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
@@ -3130,6 +3130,7 @@
             const galleryItems = [
                 {
                     type: 'video',
+                    isHEVC: true,
                     src: 'https://yysls.fp.ps.netease.com/file/69831eda1af57519b050c22bFm3bVaB707',
                     poster: 'https://www.yysls.cn/pc/fab/20250723194326/img/gameshow_video_cover_52ffd994.jpg',
                     number: '01 / CINEMATIC',
@@ -3180,9 +3181,15 @@
                 },
                 {
                     type: 'video',
-                    src: 'http://lzwh-video.test.upcdn.net/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821.mp4',
+                    isHEVC: false,
+                    src: (window.location.hostname === 'luozi.yy16s.com')
+                        ? 'assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821.mp4'
+                        : 'http://luozi.yy16s.com/assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821.mp4',
+                    poster: (window.location.hostname === 'luozi.yy16s.com')
+                        ? 'assets/lottery_cover.webp'
+                        : 'http://luozi.yy16s.com/assets/lottery_cover.webp',
                     number: '08 / CHRONICLE',
-                    title: '落子无悔 · 燕云共聚',
+                    title: '落子无悔 · 百业共聚',
                     tag: 'ARCHIVE'
                 }
             ];
@@ -3204,6 +3211,18 @@
                 });
             }
 
+            // 2. 检测浏览器是否原生支持 HEVC/H.265 解码 (Windows/Mac/iOS 支持，Linux 浏览器普遍缺失软解)
+            function checkHEVCSupport() {
+                try {
+                    const testVideo = document.createElement('video');
+                    return testVideo.canPlayType('video/mp4; codecs="hev1.1.6.L93.B0"') !== '' ||
+                           testVideo.canPlayType('video/mp4; codecs="hvc1"') !== '';
+                } catch (e) {
+                    return false;
+                }
+            }
+            const isHEVCSupported = checkHEVCSupport();
+
             // 生成 3D 卡片 DOM
             let cardsElements = [];
             galleryItems.forEach((item, i) => {
@@ -3211,9 +3230,20 @@
                 card.className = 'carousel-card interactive';
                 card.dataset.index = i;
 
-                const mediaTag = item.type === 'video'
-                    ? `<video src="${item.src}" poster="${item.poster}" muted loop playsinline autoplay preload="metadata"></video>`
-                    : `<img src="${item.src}" alt="${item.title}" loading="lazy">`;
+                let mediaTag = '';
+                if (item.type === 'video') {
+                    const canPlayThisVideo = !item.isHEVC || isHEVCSupported;
+                    if (canPlayThisVideo) {
+                        const posterAttr = item.poster ? `poster="${item.poster}"` : '';
+                        mediaTag = `<video src="${item.src}" ${posterAttr} muted loop playsinline webkit-playsinline autoplay preload="auto" disablepictureinpicture disableremoteplayback></video>`;
+                    } else {
+                        // Linux / 无 HEVC 解码环境：优雅降级为高清封面图，杜绝黑屏与显存卡死
+                        const posterSrc = item.poster || item.src;
+                        mediaTag = `<img src="${posterSrc}" alt="${item.title}" loading="lazy">`;
+                    }
+                } else {
+                    mediaTag = `<img src="${item.src}" alt="${item.title}" loading="lazy">`;
+                }
 
                 card.innerHTML = `
                     <div class="card-media-box">
@@ -3236,6 +3266,28 @@
                 `;
                 cylinder.appendChild(card);
                 cardsElements.push(card);
+
+                if (item.type === 'video') {
+                    const canPlayThisVideo = !item.isHEVC || isHEVCSupported;
+                    if (canPlayThisVideo) {
+                        const videoEl = card.querySelector('video');
+                        if (videoEl) {
+                            videoEl.muted = true;
+                            videoEl.defaultMuted = true;
+                            videoEl.playsInline = true;
+
+                            const startPlay = () => {
+                                if (videoEl.paused) {
+                                    videoEl.play().catch(() => {});
+                                }
+                            };
+
+                            videoEl.addEventListener('loadeddata', startPlay);
+                            videoEl.addEventListener('canplay', startPlay);
+                            startPlay();
+                        }
+                    }
+                }
             });
 
             updateDimensions();
@@ -3281,10 +3333,25 @@
 
                     if (absAngle > maxAngle) {
                         // 在圆柱背面或边缘不可视夹角内，隐藏以节省渲染资源并彻底杜绝 3D 卡片穿透重叠
-                        card.style.visibility = 'hidden';
-                        card.style.opacity = '0';
-                        card.style.pointerEvents = 'none';
+                        if (card.style.visibility !== 'hidden') {
+                            card.style.visibility = 'hidden';
+                            card.style.opacity = '0';
+                            card.style.pointerEvents = 'none';
+                            const v = card.querySelector('video');
+                            if (v && !v.paused) {
+                                v.pause();
+                            }
+                        }
                     } else {
+                        // 重新旋转到正面视野内：如果是视频且处于暂停状态，自动唤醒播放
+                        if (card.style.visibility === 'hidden') {
+                            const v = card.querySelector('video');
+                            if (v && v.paused) {
+                                v.muted = true;
+                                v.defaultMuted = true;
+                                v.play().catch(() => {});
+                            }
+                        }
                         card.style.visibility = 'visible';
                         card.style.pointerEvents = 'auto';
 
@@ -3428,6 +3495,24 @@
                 }
             });
 
+            // 全局自动播放策略兜底：针对 Firefox / Chrome 严格静音策略，在用户首次轻微互动时即刻唤醒所有正面视频
+            let hasUnlockedAutoplay = false;
+            function unlockAllVideos() {
+                if (hasUnlockedAutoplay) return;
+                hasUnlockedAutoplay = true;
+                cardsElements.forEach(card => {
+                    const v = card.querySelector('video');
+                    if (v && v.paused && card.style.visibility !== 'hidden') {
+                        v.muted = true;
+                        v.defaultMuted = true;
+                        v.play().catch(() => {});
+                    }
+                });
+            }
+            ['pointerdown', 'touchstart', 'scroll', 'wheel'].forEach(evt => {
+                window.addEventListener(evt, unlockAllVideos, { passive: true, once: true });
+            });
+
             // 4. 统一大图与多媒体预览弹窗
             const modal = document.getElementById('media-modal');
             const modalDialog = document.getElementById('modal-dialog');
@@ -3442,12 +3527,56 @@
                 modalTag.innerText = item.number + ' · ' + item.tag;
 
                 if (item.type === 'video') {
-                    modalSlot.innerHTML = `
-                        <div class="modal-media-frame">
-                            <video src="${item.src}" controls autoplay playsinline style="max-height: 65vh; width: 100%;"></video>
-                        </div>
-                        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--text-primary);">${item.title}</h3>
-                    `;
+                    const canPlayThisVideo = !item.isHEVC || isHEVCSupported;
+                    if (canPlayThisVideo) {
+                        const posterAttr = item.poster ? `poster="${item.poster}"` : '';
+                        modalSlot.innerHTML = `
+                            <div class="modal-media-frame">
+                                <video src="${item.src}" ${posterAttr} controls autoplay playsinline style="max-height: 65vh; width: 100%;"></video>
+                            </div>
+                            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--text-primary);">${item.title}</h3>
+                        `;
+                        const modalVid = modalSlot.querySelector('video');
+                        if (modalVid) {
+                            modalVid.play().catch(() => {});
+                        }
+                    } else {
+                        const posterSrc = item.poster || '';
+                        modalSlot.innerHTML = `
+                            <div class="modal-media-frame" style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; border-radius: 8px; overflow: hidden;">
+                                <img src="${posterSrc}" alt="${item.title}" style="max-height: 55vh; width: 100%; object-fit: contain;">
+                                <div style="width: 100%; background: rgba(18, 18, 22, 0.95); border-top: 1px solid rgba(255,255,255,0.1); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.85); line-height: 1.5;">
+                                        <div style="color: #f59e0b; font-weight: 600; margin-bottom: 2px;">⚠️ 当前环境不支持 HEVC (H.265) 网页直解</div>
+                                        <div style="font-size: 0.78rem; color: rgba(255,255,255,0.65);">该视频为远程官方 4K HEVC 源，Linux 浏览器默认无授权。建议使用本地播放器播放。</div>
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <a href="${item.src}" target="_blank" rel="noopener noreferrer" class="pill-btn interactive" style="padding: 6px 14px; font-size: 0.8rem; background: rgba(255,255,255,0.1);">
+                                            <span>原片直链 ↗</span>
+                                        </a>
+                                        <button id="copy-video-link-btn" class="pill-btn interactive" style="padding: 6px 14px; font-size: 0.8rem; background: var(--accent-gold); color: #000; font-weight: 600;">
+                                            <span>复制链接 (MPV播放)</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); margin-top: 12px;">${item.title}</h3>
+                        `;
+                        const copyBtn = document.getElementById('copy-video-link-btn');
+                        if (copyBtn) {
+                            copyBtn.addEventListener('click', () => {
+                                navigator.clipboard.writeText(item.src).then(() => {
+                                    const span = copyBtn.querySelector('span');
+                                    if (span) span.innerText = '已复制！可在终端运行 mpv <链接>';
+                                    setTimeout(() => {
+                                        if (copyBtn.querySelector('span')) {
+                                            copyBtn.querySelector('span').innerText = '复制链接 (MPV播放)';
+                                        }
+                                    }, 3000);
+                                });
+                            });
+                        }
+                    }
                 } else {
                     modalSlot.innerHTML = `
                         <div class="modal-media-frame">
