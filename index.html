@@ -8,10 +8,11 @@
     <meta name="description" content="落子无悔百业社群官方主页。查看精彩瞬间摄影集与官方微信交流群。">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
-    <!-- 现代无衬线与等宽字体 -->
+    <!-- 现代无衬线与等宽字体 (非阻塞异步加载，防止国内网络环境阻塞首屏渲染) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
 
     <!-- 首屏主题即时加载防闪烁脚本 (Magic UI Theme Init) -->
     <script>
@@ -46,13 +47,6 @@
         }
         html[data-magicui-theme-vt="active"]::view-transition-new(root) {
             clip-path: var(--magicui-theme-vt-clip-from);
-        }
-
-        /* Magic UI Shiny Button 自定义属性动画支持 */
-        @property --x {
-            syntax: '<percentage>';
-            inherits: true;
-            initial-value: 100%;
         }
 
         :root {
@@ -198,25 +192,18 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
         } */
 
-        /* 燕云十六声暗调背景图层 */
+        /* 燕云十六声暗调背景图层 (静态 GPU 缓存图层，避免全屏滤镜动画导致重绘与毛玻璃失效) */
         .bg-backdrop {
             position: fixed;
             inset: 0;
             z-index: 0;
             pointer-events: none;
-            background-image: radial-gradient(circle at 50% 30%, rgba(5, 7, 10, 0.4) 0%, rgba(2, 2, 3, 0.95) 75%),
-                              url('https://www.yysls.cn/pc/fab/20250723194326/img/kv_fish_f0217cf9.jpg');
+            background-image: radial-gradient(circle at 50% 30%, rgba(5, 7, 10, 0.55) 0%, rgba(2, 2, 3, 0.96) 75%),
+                              url('assets/bg_backdrop.webp');
             background-size: cover;
             background-position: center;
-            opacity: 0.28;
-            filter: contrast(120%) brightness(55%) grayscale(25%);
-            transform: scale(1.04);
-            animation: slowBreath 30s ease-in-out infinite alternate;
-        }
-
-        @keyframes slowBreath {
-            0% { transform: scale(1.02); }
-            100% { transform: scale(1.06); }
+            opacity: 0.22;
+            contain: strict;
         }
 
         /* 粒子 Canvas 背景层 */
@@ -229,7 +216,7 @@
             height: 100%;
         }
 
-        /* 自定义跟随光标 */
+        /* 自定义跟随光标 (纯 GPU translate3d 合成) */
         #cursor-dot, #cursor-circle {
             position: fixed;
             top: 0;
@@ -237,7 +224,8 @@
             pointer-events: none;
             z-index: 9999;
             border-radius: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate3d(-100px, -100px, 0) translate(-50%, -50%);
+            will-change: transform, opacity;
             opacity: 0;
             transition: opacity 0.3s ease;
         }
@@ -259,8 +247,7 @@
             width: 58px;
             height: 58px;
             border-color: rgba(255, 255, 255, 0.8);
-            background-color: rgba(255, 255, 255, 0.08);
-            backdrop-filter: invert(15%);
+            background-color: rgba(255, 255, 255, 0.12);
         }
 
         @media (pointer: coarse) {
@@ -379,8 +366,8 @@
             border-radius: 999px;
             border: 1px solid var(--border-subtle);
             background: var(--pill-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             color: var(--text-primary);
             transition: all 0.35s var(--ease-out-expo);
             position: relative;
@@ -554,7 +541,7 @@
             justify-content: center;
             pointer-events: none;
             color: var(--text-primary);
-            will-change: transform, opacity, filter;
+            will-change: transform, opacity;
         }
 
         .logo-item svg {
@@ -584,30 +571,25 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
 
-        /* 进场动画: 从 y: 10%, opacity: 0, blur(8px) 平滑弹性弹入 */
+        /* 进场动画: 从 y: 12%, opacity: 0 平滑弹性弹入 (纯 GPU transform/opacity) */
         .logo-item.enter {
             transform: translateY(12%);
             opacity: 0;
-            filter: blur(8px);
         }
 
         .logo-item.active {
             transform: translateY(0%);
             opacity: 1;
-            filter: blur(0px);
             transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
-                        opacity 0.4s ease-out,
-                        filter 0.4s ease-out;
+                        opacity 0.4s ease-out;
         }
 
-        /* 离场动画: 上浮至 y: -20%, opacity: 0, blur(6px) 平滑离场 */
+        /* 离场动画: 上浮至 y: -20%, opacity: 0 平滑离场 */
         .logo-item.exit {
             transform: translateY(-20%);
             opacity: 0;
-            filter: blur(6px);
             transition: transform 0.3s cubic-bezier(0.4, 0, 1, 1),
-                        opacity 0.3s cubic-bezier(0.4, 0, 1, 1),
-                        filter 0.3s cubic-bezier(0.4, 0, 1, 1);
+                        opacity 0.3s cubic-bezier(0.4, 0, 1, 1);
         }
 
         @media (max-width: 640px) {
@@ -721,7 +703,7 @@
             z-index: 2;
         }
 
-        /* 3D 卡片单体 */
+        /* 3D 卡片单体 (避免 preserve-3d 与 overflow:hidden 冲突，用独立遮罩层替代实时 filter:brightness) */
         .carousel-card {
             position: absolute;
             width: var(--card-w);
@@ -734,17 +716,16 @@
             overflow: hidden;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
-            transform-style: preserve-3d;
             border: 1px solid rgba(255, 255, 255, 0.12);
             background: #0d0d10;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.04);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
             cursor: pointer;
             transition: box-shadow 0.3s ease, border-color 0.3s ease;
         }
 
         .carousel-card:hover {
             border-color: rgba(255, 255, 255, 0.35);
-            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 24px rgba(255, 255, 255, 0.08);
         }
 
         /* 卡片媒体容器 */
@@ -764,8 +745,18 @@
             object-fit: cover;
             display: block;
             pointer-events: none;
-            filter: contrast(1.05);
             transition: transform 0.6s var(--ease-out-expo);
+        }
+
+        /* 侧向暗化渐变遮罩：用纯透明层合成替代逐帧 CSS filter，大幅降低 Gecko WebRender 开销 */
+        .card-shade {
+            position: absolute;
+            inset: 0;
+            background: #000000;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+            will-change: opacity;
         }
 
         .carousel-card:hover .card-media-box img,
@@ -799,10 +790,9 @@
             text-transform: uppercase;
             padding: 3px 10px;
             border-radius: 999px;
-            background: rgba(0, 0, 0, 0.65);
+            background: rgba(10, 10, 14, 0.82);
             border: 1px solid rgba(255, 255, 255, 0.18);
             color: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(8px);
         }
 
         .card-bottom-bar {
@@ -864,7 +854,7 @@
             }
         }
 
-        /* ================= Magic UI 官方风格 Shiny Button ================= */
+        /* ================= Magic UI 风格 Shiny Button (纯 GPU transform 流光，零主线程样式重算) ================= */
         .shiny-btn {
             position: relative;
             display: inline-flex;
@@ -873,24 +863,36 @@
             gap: 9px;
             cursor: pointer;
             border-radius: 999px; /* 与右上角百业介绍、后台保持相同R角 */
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.14);
             padding: 8px 22px; /* px-6 py-2 */
             font-family: inherit;
             font-weight: 500;
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            background-color: transparent;
+            background-color: rgba(16, 16, 20, 0.78);
             background-image: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
             transition: transform 0.15s ease, box-shadow 0.3s ease-in-out;
             outline: none;
             text-decoration: none;
             user-select: none;
             -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        .shiny-btn::after {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: -60%;
+            width: 45%;
+            height: 140%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+            transform: translateX(-100%) skewX(-20deg);
+            pointer-events: none;
             animation: shiny-btn-sweep 3.5s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+            will-change: transform;
         }
 
         .shiny-btn:hover {
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.12);
         }
 
         .shiny-btn:active {
@@ -942,10 +944,8 @@
             font-size: 0.875rem; /* text-sm (14px) */
             letter-spacing: 0.05em; /* tracking-wide */
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.9);
-            font-weight: 300; /* dark:font-light */
-            -webkit-mask-image: linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%));
-            mask-image: linear-gradient(-75deg, #fff calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #fff calc(var(--x) + 100%));
+            color: rgba(255, 255, 255, 0.92);
+            font-weight: 400;
             z-index: 1;
         }
 
@@ -965,27 +965,19 @@
         .shiny-btn-border {
             position: absolute;
             inset: 0;
-            z-index: 10;
+            z-index: 2;
             display: block;
             border-radius: inherit;
-            padding: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
             pointer-events: none;
-            -webkit-mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
-            mask: linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0)) content-box exclude, linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0));
-            background-image: linear-gradient(
-                -75deg,
-                rgba(255, 255, 255, 0.1) calc(var(--x) + 20%),
-                rgba(255, 255, 255, 0.5) calc(var(--x) + 25%),
-                rgba(255, 255, 255, 0.1) calc(var(--x) + 100%)
-            );
         }
 
         @keyframes shiny-btn-sweep {
             0% {
-                --x: 100%;
+                transform: translateX(-100%) skewX(-20deg);
             }
-            60%, 100% {
-                --x: -100%;
+            55%, 100% {
+                transform: translateX(480%) skewX(-20deg);
             }
         }
 
@@ -1014,22 +1006,25 @@
             align-items: center;
             justify-content: center;
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
-            transition: opacity 0.35s var(--ease-out-expo);
+            transition: opacity 0.3s var(--ease-out-expo), visibility 0s linear 0.3s;
             padding: 24px;
         }
 
         .modal.active {
             opacity: 1;
+            visibility: visible;
             pointer-events: auto;
+            transition: opacity 0.3s var(--ease-out-expo), visibility 0s;
         }
 
         .modal-backdrop {
             position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.88);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             cursor: zoom-out;
         }
 
@@ -1125,17 +1120,20 @@
             position: fixed;
             inset: 0;
             z-index: 500;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
-            transition: opacity 0.4s var(--ease-out-expo);
+            transition: opacity 0.35s var(--ease-out-expo), visibility 0s linear 0.35s;
         }
 
         .drawer-overlay.active {
             opacity: 1;
+            visibility: visible;
             pointer-events: auto;
+            transition: opacity 0.35s var(--ease-out-expo), visibility 0s;
         }
 
         .drawer-panel {
@@ -1519,9 +1517,7 @@
         /* Cult UI 内层核心卡片 (Layer 3) */
         .cult-card-inner {
             border-radius: 20px;
-            background: var(--surface);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: var(--card-bg);
             border: 1px solid var(--border-subtle);
             padding: 20px 22px 18px;
             display: flex;
@@ -1625,16 +1621,14 @@
             opacity: 0.85;
         }
 
-        /* 展开内容容器：1:1 Cult UI 物理网格展开与 blur-md 模糊淡入 */
+        /* 展开内容容器：流畅网格展开动画 */
         .cult-expandable-body {
             display: grid;
             grid-template-rows: 0fr;
             opacity: 0;
-            filter: blur(8px);
-            transform: translateY(12px);
-            transition: grid-template-rows 0.45s cubic-bezier(0.34, 1.25, 0.64, 1),
+            transform: translateY(10px);
+            transition: grid-template-rows 0.4s cubic-bezier(0.34, 1.25, 0.64, 1),
                         opacity 0.28s ease,
-                        filter 0.3s ease,
                         transform 0.35s cubic-bezier(0.34, 1.25, 0.64, 1);
             pointer-events: none;
         }
@@ -1652,13 +1646,11 @@
         .cult-expandable-card[data-expanded="true"] .cult-expandable-body {
             grid-template-rows: 1fr;
             opacity: 1;
-            filter: blur(0px);
             transform: translateY(0);
             pointer-events: auto;
-            transition: grid-template-rows 0.45s cubic-bezier(0.34, 1.25, 0.64, 1),
-                        opacity 0.35s ease 0.08s,
-                        filter 0.38s ease 0.08s,
-                        transform 0.42s cubic-bezier(0.34, 1.25, 0.64, 1) 0.08s;
+            transition: grid-template-rows 0.42s cubic-bezier(0.34, 1.25, 0.64, 1),
+                        opacity 0.32s ease 0.06s,
+                        transform 0.38s cubic-bezier(0.34, 1.25, 0.64, 1) 0.06s;
         }
 
         .cult-desc {
@@ -1924,8 +1916,8 @@
             border-radius: 50%;
             border: 1px solid var(--border-subtle);
             background: var(--pill-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             color: var(--text-primary);
             cursor: pointer;
             position: relative;
@@ -1976,14 +1968,12 @@
         /* ================= 浅色主题特异性适配 (Light Mode Overrides) ================= */
         html.light .bg-backdrop {
             background-image: radial-gradient(circle at 50% 30%, rgba(244, 245, 249, 0.45) 0%, rgba(244, 245, 249, 0.94) 75%),
-                              url('https://www.yysls.cn/pc/fab/20250723194326/img/kv_fish_f0217cf9.jpg');
-            opacity: 0.35;
-            filter: contrast(110%) brightness(102%) grayscale(20%);
+                              url('assets/bg_backdrop.webp');
+            opacity: 0.26;
         }
 
         html.light body.cursor-hover #cursor-circle {
-            background-color: rgba(0, 0, 0, 0.05);
-            backdrop-filter: none;
+            background-color: rgba(0, 0, 0, 0.08);
         }
 
         html.light .brand-badge {
@@ -2022,11 +2012,13 @@
             background: rgba(22, 163, 74, 0.35);
         }
 
+        html.light .shiny-btn::after {
+            background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+        }
+
         html.light .shiny-btn-text {
-            color: rgba(0, 0, 0, 0.65);
+            color: rgba(0, 0, 0, 0.72);
             font-weight: 500;
-            -webkit-mask-image: linear-gradient(-75deg, #000 calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #000 calc(var(--x) + 100%));
-            mask-image: linear-gradient(-75deg, #000 calc(var(--x) + 20%), transparent calc(var(--x) + 30%), #000 calc(var(--x) + 100%));
         }
 
         html.light .shiny-arrow {
@@ -2038,12 +2030,7 @@
         }
 
         html.light .shiny-btn-border {
-            background-image: linear-gradient(
-                -75deg,
-                rgba(0, 0, 0, 0.1) calc(var(--x) + 20%),
-                rgba(0, 0, 0, 0.5) calc(var(--x) + 25%),
-                rgba(0, 0, 0, 0.1) calc(var(--x) + 100%)
-            );
+            border-color: rgba(0, 0, 0, 0.14);
         }
 
         html.light .expandable-card {
@@ -2201,8 +2188,8 @@
             border-radius: 999px;
             background: var(--dock-desktop-bg);
             border: 1px solid var(--dock-desktop-border);
-            backdrop-filter: blur(16px) saturate(180%);
-            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             box-shadow: var(--dock-shadow);
             pointer-events: auto;
             user-select: none;
@@ -2745,7 +2732,7 @@
                                                     <span class="cult-avatar-char" style="background:#3b2d1d;color:#fcd34d;">盾</span>
                                                 </div>
                                                 <div class="cult-avatar" title="骏皇 · 输出/指挥/奶扇">
-                                                    <img src="assets/骏皇.webp" alt="骏皇">
+                                                    <img src="assets/members/mem_1790147655703_ee5y.webp" alt="骏皇" loading="lazy">
                                                 </div>
                                                 <div class="cult-avatar-more mono">+24</div>
                                             </div>
@@ -3139,6 +3126,7 @@
                 },
                 {
                     type: 'image',
+                    thumb: 'assets/gallery/thumb_02.webp',
                     src: 'https://www.yysls.cn/pc/fab/20250723194326/img/kv_fish_f0217cf9.jpg',
                     number: '02 / SCENERY',
                     title: '孤舟游鲤 · 烟雨江湖',
@@ -3146,6 +3134,7 @@
                 },
                 {
                     type: 'image',
+                    thumb: 'assets/gallery/thumb_03.webp',
                     src: 'https://www.yysls.cn/pc/fab/20250723194326/img/1_dbf0a9ad.jpg',
                     number: '03 / COMBAT',
                     title: '一剑霜寒 · 百业问鼎',
@@ -3153,6 +3142,7 @@
                 },
                 {
                     type: 'image',
+                    thumb: 'assets/gallery/thumb_04.webp',
                     src: 'https://www.yysls.cn/pc/fab/20250723194326/img/2_face6368.jpg',
                     number: '04 / PORTRAIT',
                     title: '侠客风骨 · 剑意凌云',
@@ -3160,6 +3150,7 @@
                 },
                 {
                     type: 'image',
+                    thumb: 'assets/gallery/thumb_05.webp',
                     src: 'https://www.yysls.cn/pc/fab/20250723194326/img/3_c519b7e6.jpg',
                     number: '05 / MARTIAL',
                     title: '飞檐踏瓦 · 步步生风',
@@ -3167,6 +3158,7 @@
                 },
                 {
                     type: 'image',
+                    thumb: 'assets/gallery/thumb_06.webp',
                     src: 'https://www.yysls.cn/pc/fab/20250723194326/img/4_6accaeaa.jpg',
                     number: '06 / WORLD',
                     title: '长桥落日 · 暮色漫川',
@@ -3174,6 +3166,7 @@
                 },
                 {
                     type: 'image',
+                    thumb: 'assets/gallery/thumb_07.webp',
                     src: 'https://www.yysls.cn/pc/fab/20250723194326/img/5_5bdd8424.jpg',
                     number: '07 / ENCOUNTER',
                     title: '酒肆闲谈 · 寻芳客至',
@@ -3182,12 +3175,15 @@
                 {
                     type: 'video',
                     isHEVC: false,
+                    cardSrc: (window.location.hostname === 'luozi.yy16s.com')
+                        ? 'assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821_preview.mp4'
+                        : 'https://luozi.yy16s.com/assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821_preview.mp4',
                     src: (window.location.hostname === 'luozi.yy16s.com')
                         ? 'assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821.mp4'
-                        : 'http://luozi.yy16s.com/assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821.mp4',
+                        : 'https://luozi.yy16s.com/assets/videos/%E6%8A%BD%E5%A5%96%E7%8E%AF%E8%8A%821.mp4',
                     poster: (window.location.hostname === 'luozi.yy16s.com')
                         ? 'assets/lottery_cover.webp'
-                        : 'http://luozi.yy16s.com/assets/lottery_cover.webp',
+                        : 'https://luozi.yy16s.com/assets/lottery_cover.webp',
                     number: '08 / CHRONICLE',
                     title: '落子无悔 · 百业共聚',
                     tag: 'ARCHIVE'
@@ -3195,23 +3191,17 @@
             ];
 
             // 2. 3D 圆柱空间坐标计算与卡片构建
+            const gallerySection = document.querySelector('.gallery-3d-section');
             const cylinder = document.getElementById('carousel-cylinder');
             const stage = document.getElementById('carousel-stage');
             const totalItems = galleryItems.length;
             const angleStep = 360 / totalItems; // 45 度
             let radius = 680; // 桌面端圆柱半径
+            let cachedIsMobile = window.innerWidth <= 860;
+            let cachedActiveWidth = cachedIsMobile ? window.innerWidth : Math.min(800, window.innerWidth * 0.65);
+            let cachedStageCenterX = window.innerWidth / 2;
 
-            function updateDimensions() {
-                const isMobile = window.innerWidth <= 860;
-                radius = isMobile ? 400 : 680;
-                cardsElements.forEach((card, i) => {
-                    const cardAngle = i * angleStep;
-                    card.dataset.baseAngle = cardAngle;
-                    card.style.transform = `rotateY(${cardAngle}deg) translateZ(${radius}px)`;
-                });
-            }
-
-            // 2. 检测浏览器是否原生支持 HEVC/H.265 解码 (Windows/Mac/iOS 支持，Linux 浏览器普遍缺失软解)
+            // 检测浏览器是否原生支持 HEVC/H.265 解码 (Windows/Mac/iOS 支持，Linux 浏览器普遍缺失软解)
             function checkHEVCSupport() {
                 try {
                     const testVideo = document.createElement('video');
@@ -3223,8 +3213,9 @@
             }
             const isHEVCSupported = checkHEVCSupport();
 
-            // 生成 3D 卡片 DOM
-            let cardsElements = [];
+            // 生成 3D 卡片 DOM 与渲染状态缓存
+            const cardsElements = [];
+            const cardStates = [];
             galleryItems.forEach((item, i) => {
                 const card = document.createElement('div');
                 card.className = 'carousel-card interactive';
@@ -3235,19 +3226,22 @@
                     const canPlayThisVideo = !item.isHEVC || isHEVCSupported;
                     if (canPlayThisVideo) {
                         const posterAttr = item.poster ? `poster="${item.poster}"` : '';
-                        mediaTag = `<video src="${item.src}" ${posterAttr} muted loop playsinline webkit-playsinline autoplay preload="auto" disablepictureinpicture disableremoteplayback></video>`;
+                        const videoSrc = item.cardSrc || item.src;
+                        mediaTag = `<video src="${videoSrc}" ${posterAttr} muted loop playsinline webkit-playsinline autoplay preload="auto" disablepictureinpicture disableremoteplayback></video>`;
                     } else {
                         // Linux / 无 HEVC 解码环境：优雅降级为高清封面图，杜绝黑屏与显存卡死
-                        const posterSrc = item.poster || item.src;
-                        mediaTag = `<img src="${posterSrc}" alt="${item.title}" loading="lazy">`;
+                        const posterSrc = item.thumb || item.poster || item.src;
+                        mediaTag = `<img src="${posterSrc}" alt="${item.title}" decoding="async">`;
                     }
                 } else {
-                    mediaTag = `<img src="${item.src}" alt="${item.title}" loading="lazy">`;
+                    const imgSrc = item.thumb || item.src;
+                    mediaTag = `<img src="${imgSrc}" alt="${item.title}" decoding="async">`;
                 }
 
                 card.innerHTML = `
                     <div class="card-media-box">
                         ${mediaTag}
+                        <div class="card-shade" aria-hidden="true"></div>
                     </div>
                     <div class="card-inner-overlay">
                         <div class="card-top-bar">
@@ -3267,31 +3261,49 @@
                 cylinder.appendChild(card);
                 cardsElements.push(card);
 
-                if (item.type === 'video') {
-                    const canPlayThisVideo = !item.isHEVC || isHEVCSupported;
-                    if (canPlayThisVideo) {
-                        const videoEl = card.querySelector('video');
-                        if (videoEl) {
-                            videoEl.muted = true;
-                            videoEl.defaultMuted = true;
-                            videoEl.playsInline = true;
+                const videoEl = card.querySelector('video');
+                const shadeEl = card.querySelector('.card-shade');
+                cardStates.push({
+                    el: card,
+                    shadeEl,
+                    videoEl,
+                    baseAngle: i * angleStep,
+                    visible: null,
+                    opacity: '',
+                    shade: '',
+                    zIndex: null
+                });
 
-                            const startPlay = () => {
-                                if (videoEl.paused) {
-                                    videoEl.play().catch(() => {});
-                                }
-                            };
+                if (videoEl) {
+                    videoEl.muted = true;
+                    videoEl.defaultMuted = true;
+                    videoEl.playsInline = true;
 
-                            videoEl.addEventListener('loadeddata', startPlay);
-                            videoEl.addEventListener('canplay', startPlay);
-                            startPlay();
+                    const startPlay = () => {
+                        if (videoEl.paused && cardStates[i].visible !== false && !document.hidden) {
+                            videoEl.play().catch(() => {});
                         }
-                    }
+                    };
+
+                    videoEl.addEventListener('loadeddata', startPlay);
+                    videoEl.addEventListener('canplay', startPlay);
+                    startPlay();
                 }
             });
 
+            function updateDimensions() {
+                cachedIsMobile = window.innerWidth <= 860;
+                cachedActiveWidth = cachedIsMobile ? window.innerWidth : Math.min(800, window.innerWidth * 0.65);
+                radius = cachedIsMobile ? 400 : 680;
+                const stageRect = stage.getBoundingClientRect();
+                cachedStageCenterX = stageRect.left + stageRect.width / 2;
+                cardStates.forEach((state) => {
+                    state.el.style.transform = `rotateY(${state.baseAngle}deg) translateZ(${radius}px)`;
+                });
+            }
+
             updateDimensions();
-            window.addEventListener('resize', updateDimensions);
+            window.addEventListener('resize', updateDimensions, { passive: true });
 
             // 3. Jesper Landberg 3D 惯性拖拽与滚轮物理衰减旋转逻辑
             let currentRotation = 0; // 当前圆柱朝向角 (度)
@@ -3301,8 +3313,49 @@
             let velocity = 0;
             let totalDragDist = 0;
             const autoSpeed = 0.08; // 自动巡航微流转速度 (度/帧)
+            let isGalleryInView = true;
+            let isModalOpen = false;
+            let isDrawerOpen = false;
+            let carouselRafId = null;
+
+            function syncGalleryActiveState() {
+                const shouldRun = isGalleryInView && !isModalOpen && !isDrawerOpen && !document.hidden;
+                if (shouldRun) {
+                    cardStates.forEach((state) => {
+                        if (state.visible && state.videoEl && state.videoEl.paused) {
+                            state.videoEl.muted = true;
+                            state.videoEl.defaultMuted = true;
+                            state.videoEl.play().catch(() => {});
+                        }
+                    });
+                    if (carouselRafId === null) {
+                        carouselRafId = requestAnimationFrame(renderCarousel);
+                    }
+                } else {
+                    if (carouselRafId !== null) {
+                        cancelAnimationFrame(carouselRafId);
+                        carouselRafId = null;
+                    }
+                    cardStates.forEach((state) => {
+                        if (state.videoEl && !state.videoEl.paused) {
+                            state.videoEl.pause();
+                        }
+                    });
+                }
+            }
+
+            if ('IntersectionObserver' in window && gallerySection) {
+                const galleryObserver = new IntersectionObserver((entries) => {
+                    isGalleryInView = entries[0] ? entries[0].isIntersecting : true;
+                    syncGalleryActiveState();
+                }, { threshold: 0.01 });
+                galleryObserver.observe(gallerySection);
+            }
 
             function renderCarousel() {
+                carouselRafId = null;
+                if (!isGalleryInView || isModalOpen || document.hidden) return;
+
                 if (!isDragging) {
                     // 惯性衰减
                     if (Math.abs(velocity) > 0.02) {
@@ -3319,75 +3372,69 @@
                 currentRotation = (currentRotation % 360 + 360) % 360;
 
                 // 圆柱旋转 transform：将圆柱中心推至 -radius，并旋转当前角度
-                cylinder.style.transform = `translateZ(-${radius}px) rotateY(${currentRotation.toFixed(3)}deg)`;
+                cylinder.style.transform = `translateZ(-${radius}px) rotateY(${currentRotation.toFixed(2)}deg)`;
 
-                // 为每张卡片做实时 3D 深度渲染优化（正面明亮、侧背面渐暗退隐）
-                const isMobile = window.innerWidth <= 860;
-                const maxAngle = isMobile ? 70 : 100;
+                // 为每张卡片做实时 3D 深度渲染优化（仅在属性实际变化时写入 DOM，避免样式抖动）
+                const maxAngle = cachedIsMobile ? 70 : 100;
 
-                cardsElements.forEach((card, i) => {
-                    const baseAngle = parseFloat(card.dataset.baseAngle);
-                    // 计算该卡片当前面向观察者的相对角度 (-180 ~ 180)
-                    let relAngle = ((baseAngle + currentRotation) % 360 + 540) % 360 - 180;
+                for (let i = 0; i < cardStates.length; i++) {
+                    const state = cardStates[i];
+                    let relAngle = ((state.baseAngle + currentRotation) % 360 + 540) % 360 - 180;
                     const absAngle = Math.abs(relAngle);
 
                     if (absAngle > maxAngle) {
-                        // 在圆柱背面或边缘不可视夹角内，隐藏以节省渲染资源并彻底杜绝 3D 卡片穿透重叠
-                        if (card.style.visibility !== 'hidden') {
-                            card.style.visibility = 'hidden';
-                            card.style.opacity = '0';
-                            card.style.pointerEvents = 'none';
-                            const v = card.querySelector('video');
-                            if (v && !v.paused) {
-                                v.pause();
+                        if (state.visible !== false) {
+                            state.visible = false;
+                            state.el.style.visibility = 'hidden';
+                            state.el.style.opacity = '0';
+                            state.opacity = '0';
+                            state.el.style.pointerEvents = 'none';
+                            if (state.videoEl && !state.videoEl.paused) {
+                                state.videoEl.pause();
                             }
                         }
                     } else {
-                        // 重新旋转到正面视野内：如果是视频且处于暂停状态，自动唤醒播放
-                        if (card.style.visibility === 'hidden') {
-                            const v = card.querySelector('video');
-                            if (v && v.paused) {
-                                v.muted = true;
-                                v.defaultMuted = true;
-                                v.play().catch(() => {});
+                        if (state.visible !== true) {
+                            state.visible = true;
+                            state.el.style.visibility = 'visible';
+                            state.el.style.pointerEvents = 'auto';
+                            if (state.videoEl && state.videoEl.paused) {
+                                state.videoEl.muted = true;
+                                state.videoEl.defaultMuted = true;
+                                state.videoEl.play().catch(() => {});
                             }
                         }
-                        card.style.visibility = 'visible';
-                        card.style.pointerEvents = 'auto';
 
-                        // 模仿 Jesper 视频中的 3D 阴影衰减（正中间 100% 亮，两侧渐暗）
                         const factor = absAngle / maxAngle;
-                        const brightness = 1 - factor * 0.45;
-
-                        // 边缘平滑淡出，避免卡片闪烁或 3D 侧面切入打架
-                        let opacity = 1;
+                        const shadeVal = (factor * 0.45).toFixed(2);
+                        let opacityNum = 1;
                         if (factor > 0.5) {
-                            opacity = Math.max(0, 1 - (factor - 0.5) / 0.5);
+                            opacityNum = Math.max(0, 1 - (factor - 0.5) / 0.5);
                         }
+                        const opacityVal = opacityNum.toFixed(2);
+                        const nextZ = Math.round(100 - absAngle);
 
-                        card.style.filter = `brightness(${brightness.toFixed(3)})`;
-                        card.style.opacity = opacity.toFixed(3);
-
-                        // 确保正面卡片拥有最高图层深度
-                        card.style.zIndex = Math.round(100 - absAngle);
+                        if (state.shadeEl && state.shade !== shadeVal) {
+                            state.shade = shadeVal;
+                            state.shadeEl.style.opacity = shadeVal;
+                        }
+                        if (state.opacity !== opacityVal) {
+                            state.opacity = opacityVal;
+                            state.el.style.opacity = opacityVal;
+                        }
+                        if (state.zIndex !== nextZ) {
+                            state.zIndex = nextZ;
+                            state.el.style.zIndex = nextZ;
+                        }
                     }
-                });
+                }
 
-                requestAnimationFrame(renderCarousel);
+                carouselRafId = requestAnimationFrame(renderCarousel);
             }
-            requestAnimationFrame(renderCarousel);
-
-            // 计算中央画廊生效有效宽度（桌面端约 800px，移动端自适应宽）
-            function getCarouselActiveWidth() {
-                return window.innerWidth <= 860 ? window.innerWidth : Math.min(800, window.innerWidth * 0.65);
-            }
+            carouselRafId = requestAnimationFrame(renderCarousel);
 
             function isCursorInActiveCarousel(clientX) {
-                const activeWidth = getCarouselActiveWidth();
-                const stageRect = stage.getBoundingClientRect();
-                const stageCenterX = stageRect.left + stageRect.width / 2;
-                const distFromCenter = Math.abs(clientX - stageCenterX);
-                return distFromCenter <= activeWidth / 2;
+                return Math.abs(clientX - cachedStageCenterX) <= cachedActiveWidth / 2;
             }
 
             // 鼠标滚轮旋转画廊交互 (缩小生效区域至中央画廊卡片范围，两侧留白区域允许网页正常纵向滚动)
@@ -3409,10 +3456,15 @@
             }, { passive: false });
 
             // 监听鼠标在画廊区域的移动，在中央交互区显示 grab 抓取手势，在两侧显示默认光标以提示可垂直滚动
+            let lastStageCursor = '';
             stage.addEventListener('mousemove', (e) => {
                 if (isDragging) return;
-                stage.style.cursor = isCursorInActiveCarousel(e.clientX) ? 'grab' : 'default';
-            });
+                const nextCursor = isCursorInActiveCarousel(e.clientX) ? 'grab' : 'default';
+                if (lastStageCursor !== nextCursor) {
+                    lastStageCursor = nextCursor;
+                    stage.style.cursor = nextCursor;
+                }
+            }, { passive: true });
 
             // 拖拽手势
             function onPointerDown(clientX) {
@@ -3431,7 +3483,7 @@
                 lastX = clientX;
 
                 // 根据屏幕宽度缩放灵敏度 (像素映射到角度)
-                const sensitivity = window.innerWidth <= 860 ? 0.28 : 0.22;
+                const sensitivity = cachedIsMobile ? 0.28 : 0.22;
                 currentRotation += dx * sensitivity;
                 velocity = dx * sensitivity;
             }
@@ -3500,12 +3552,11 @@
             function unlockAllVideos() {
                 if (hasUnlockedAutoplay) return;
                 hasUnlockedAutoplay = true;
-                cardsElements.forEach(card => {
-                    const v = card.querySelector('video');
-                    if (v && v.paused && card.style.visibility !== 'hidden') {
-                        v.muted = true;
-                        v.defaultMuted = true;
-                        v.play().catch(() => {});
+                cardStates.forEach(state => {
+                    if (state.videoEl && state.videoEl.paused && state.visible) {
+                        state.videoEl.muted = true;
+                        state.videoEl.defaultMuted = true;
+                        state.videoEl.play().catch(() => {});
                     }
                 });
             }
@@ -3523,6 +3574,8 @@
             const modalBackdrop = document.getElementById('modal-backdrop');
 
             function openMediaModal(item) {
+                isModalOpen = true;
+                syncGalleryActiveState();
                 modalDialog.classList.add('wide');
                 modalTag.innerText = item.number + ' · ' + item.tag;
 
@@ -3603,9 +3656,9 @@
             }
 
             // 微信二维码弹窗 (Magic UI 动画文字按钮交互触发)
-            const btnOpenWechatQr = document.getElementById('btn-open-wechat-qr');
-
             function openQrModal() {
+                isModalOpen = true;
+                syncGalleryActiveState();
                 modalDialog.classList.remove('wide');
                 modalTag.innerText = 'SCAN TO JOIN / 微信交流群';
                 modalSlot.innerHTML = `
@@ -3618,7 +3671,6 @@
                 document.body.style.overflow = 'hidden';
             }
 
-            if (btnOpenWechatQr) btnOpenWechatQr.addEventListener('click', openQrModal);
             window.openQrModal = openQrModal;
             window.closeModal = closeModal;
 
@@ -3627,63 +3679,116 @@
                 const video = modalSlot.querySelector('video');
                 if (video) video.pause();
                 document.body.style.overflow = '';
+                isModalOpen = false;
+                syncGalleryActiveState();
             }
 
             if (modalClose) modalClose.addEventListener('click', closeModal);
             if (modalBackdrop) modalBackdrop.addEventListener('click', closeModal);
 
-            // 5. 自定义跟随光标
+            // 5. 自定义跟随光标 (合并 RAF 更新 + 静止自动休眠 + 事件委托，消除高刷鼠标卡顿与空转)
             const cursorDot = document.getElementById('cursor-dot');
             const cursorCircle = document.getElementById('cursor-circle');
+            const supportsFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
             let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
             let circleX = mouseX, circleY = mouseY;
             let isCursorActive = false;
-
-            window.addEventListener('mousemove', (e) => {
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-                if (!isCursorActive) {
-                    isCursorActive = true;
-                    cursorDot.style.opacity = '1';
-                    cursorCircle.style.opacity = '1';
-                }
-                cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
-            });
-
-            window.addEventListener('mouseleave', () => {
-                isCursorActive = false;
-                cursorDot.style.opacity = '0';
-                cursorCircle.style.opacity = '0';
-            });
+            let cursorDotDirty = false;
+            let cursorRafId = null;
 
             function renderCursor() {
-                circleX += (mouseX - circleX) * 0.18;
-                circleY += (mouseY - circleY) * 0.18;
-                cursorCircle.style.transform = `translate(${circleX}px, ${circleY}px)`;
-                requestAnimationFrame(renderCursor);
-            }
-            renderCursor();
+                cursorRafId = null;
+                if (!isCursorActive || !supportsFinePointer || document.hidden) return;
 
-            // 交互元素光标放大
-            function bindInteractiveCursor() {
-                const els = document.querySelectorAll('.interactive, a, button');
-                els.forEach(el => {
-                    el.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
-                    el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+                if (cursorDotDirty) {
+                    cursorDotDirty = false;
+                    cursorDot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
+                }
+
+                const dx = mouseX - circleX;
+                const dy = mouseY - circleY;
+                if (Math.abs(dx) > 0.15 || Math.abs(dy) > 0.15) {
+                    circleX += dx * 0.22;
+                    circleY += dy * 0.22;
+                    cursorCircle.style.transform = `translate3d(${circleX.toFixed(1)}px, ${circleY.toFixed(1)}px, 0) translate(-50%, -50%)`;
+                    cursorRafId = requestAnimationFrame(renderCursor);
+                } else if (circleX !== mouseX || circleY !== mouseY) {
+                    circleX = mouseX;
+                    circleY = mouseY;
+                    cursorCircle.style.transform = `translate3d(${circleX}px, ${circleY}px, 0) translate(-50%, -50%)`;
+                }
+            }
+
+            if (supportsFinePointer && cursorDot && cursorCircle) {
+                window.addEventListener('mousemove', (e) => {
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                    cursorDotDirty = true;
+                    if (!isCursorActive) {
+                        isCursorActive = true;
+                        circleX = mouseX;
+                        circleY = mouseY;
+                        cursorDot.style.opacity = '1';
+                        cursorCircle.style.opacity = '1';
+                        cursorCircle.style.transform = `translate3d(${circleX}px, ${circleY}px, 0) translate(-50%, -50%)`;
+                    }
+                    if (cursorRafId === null) {
+                        cursorRafId = requestAnimationFrame(renderCursor);
+                    }
+                }, { passive: true });
+
+                document.addEventListener('mouseleave', () => {
+                    isCursorActive = false;
+                    cursorDot.style.opacity = '0';
+                    cursorCircle.style.opacity = '0';
+                    if (cursorRafId !== null) {
+                        cancelAnimationFrame(cursorRafId);
+                        cursorRafId = null;
+                    }
                 });
+            }
+
+            // 交互元素光标放大 (采用全局事件委托，免去反复全量 DOM 查询与海量监听绑定)
+            function bindInteractiveCursor() {
+                if (window.__cursorHoverDelegated || !supportsFinePointer) return;
+                window.__cursorHoverDelegated = true;
+                let hoveredEl = null;
+                document.addEventListener('pointerover', (e) => {
+                    const target = e.target.closest('.interactive, a, button');
+                    if (target !== hoveredEl) {
+                        hoveredEl = target;
+                        document.body.classList.toggle('cursor-hover', Boolean(target));
+                    }
+                }, { passive: true });
+                document.addEventListener('pointerout', (e) => {
+                    if (!e.relatedTarget || !e.relatedTarget.closest('.interactive, a, button')) {
+                        if (hoveredEl) {
+                            hoveredEl = null;
+                            document.body.classList.remove('cursor-hover');
+                        }
+                    }
+                }, { passive: true });
             }
             bindInteractiveCursor();
 
-            // 7. 微尘粒子系统
+            // 7. 微尘粒子系统 (30fps 节流 + 颜色预计算 + 后台标签页休眠，大幅减少 WebRender 背景重绘)
             const canvas = document.getElementById('particles-canvas');
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { alpha: true });
             let particles = [];
+            let isLightTheme = document.documentElement.classList.contains('light');
+            let particleRafId = null;
+            let lastParticleFrame = 0;
+
+            const themeClassObserver = new MutationObserver(() => {
+                isLightTheme = document.documentElement.classList.contains('light');
+            });
+            themeClassObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
             function resizeCanvas() {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
             }
-            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('resize', resizeCanvas, { passive: true });
             resizeCanvas();
 
             class AmbientParticle {
@@ -3694,22 +3799,21 @@
                     this.x = Math.random() * canvas.width;
                     this.y = randomY ? Math.random() * canvas.height : canvas.height + 10;
                     this.size = Math.random() * 1.5 + 0.4;
-                    this.speedX = (Math.random() - 0.5) * 0.3;
-                    this.speedY = -(Math.random() * 0.4 + 0.15);
-                    this.opacity = Math.random() * 0.4 + 0.1;
+                    this.speedX = (Math.random() - 0.5) * 0.45;
+                    this.speedY = -(Math.random() * 0.6 + 0.25);
+                    const op = Math.random() * 0.35 + 0.1;
+                    this.darkFill = `rgba(255, 255, 255, ${op.toFixed(2)})`;
+                    this.lightFill = `rgba(60, 65, 80, ${(op * 0.45).toFixed(2)})`;
                 }
-                update() {
-                    this.x += this.speedX;
-                    this.y += this.speedY;
+                update(dtScale) {
+                    this.x += this.speedX * dtScale;
+                    this.y += this.speedY * dtScale;
                     if (this.y < -10 || this.x < -10 || this.x > canvas.width + 10) {
                         this.init(false);
                     }
                 }
                 draw() {
-                    const isLight = document.documentElement.classList.contains('light');
-                    ctx.fillStyle = isLight
-                        ? `rgba(60, 65, 80, ${this.opacity * 0.45})`
-                        : `rgba(255, 255, 255, ${this.opacity})`;
+                    ctx.fillStyle = isLightTheme ? this.lightFill : this.darkFill;
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                     ctx.fill();
@@ -3718,23 +3822,48 @@
 
             function initParticles() {
                 particles = [];
-                const count = Math.min(Math.floor(window.innerWidth / 30), 45);
+                const count = Math.min(Math.floor(window.innerWidth / 52), 26);
                 for (let i = 0; i < count; i++) {
                     particles.push(new AmbientParticle());
                 }
             }
 
-            function animateParticles() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                for (let i = 0; i < particles.length; i++) {
-                    particles[i].update();
-                    particles[i].draw();
+            function animateParticles(now = performance.now()) {
+                particleRafId = null;
+                if (document.hidden) return;
+                if (now - lastParticleFrame >= 32) {
+                    const dtScale = lastParticleFrame ? Math.min((now - lastParticleFrame) / 16.67, 3) : 1;
+                    lastParticleFrame = now;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    for (let i = 0; i < particles.length; i++) {
+                        particles[i].update(dtScale);
+                        particles[i].draw();
+                    }
                 }
-                requestAnimationFrame(animateParticles);
+                particleRafId = requestAnimationFrame(animateParticles);
             }
 
             initParticles();
-            animateParticles();
+            particleRafId = requestAnimationFrame(animateParticles);
+
+            document.addEventListener('visibilitychange', () => {
+                syncGalleryActiveState();
+                if (document.hidden) {
+                    if (particleRafId !== null) {
+                        cancelAnimationFrame(particleRafId);
+                        particleRafId = null;
+                    }
+                    if (cursorRafId !== null) {
+                        cancelAnimationFrame(cursorRafId);
+                        cursorRafId = null;
+                    }
+                } else {
+                    lastParticleFrame = 0;
+                    if (particleRafId === null) {
+                        particleRafId = requestAnimationFrame(animateParticles);
+                    }
+                }
+            });
 
             // 8. 社主名片抽屉 (Profile Drawer)
             const drawerOverlay = document.getElementById('drawer-overlay');
@@ -3743,6 +3872,8 @@
             const drawerClose = document.getElementById('drawer-close');
 
             function openDrawer() {
+                isDrawerOpen = true;
+                syncGalleryActiveState();
                 drawerOverlay.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
@@ -3750,7 +3881,12 @@
             function closeDrawer() {
                 drawerOverlay.classList.remove('active');
                 document.body.style.overflow = '';
+                isDrawerOpen = false;
+                syncGalleryActiveState();
             }
+
+            window.openDrawer = openDrawer;
+            window.closeDrawer = closeDrawer;
 
             if (btnOpenDrawer) btnOpenDrawer.addEventListener('click', openDrawer);
             if (heroAvatarTrigger) heroAvatarTrigger.addEventListener('click', openDrawer);
@@ -3930,11 +4066,21 @@
                 const itemStates = dockItems.map(item => ({
                     el: item,
                     icon: item.querySelector('.floating-dock-icon'),
+                    centerX: 0,
                     currentSize: 40,
                     targetSize: 40,
                     currentIconSize: 20,
                     targetIconSize: 20
                 }));
+
+                function cacheDockCenters() {
+                    itemStates.forEach(state => {
+                        const rect = state.el.getBoundingClientRect();
+                        state.centerX = rect.left + rect.width / 2;
+                    });
+                }
+                cacheDockCenters();
+                window.addEventListener('resize', cacheDockCenters, { passive: true });
 
                 let mouseX = null;
                 let isAnimating = false;
@@ -3954,9 +4100,7 @@
                             state.targetSize = BASE_SIZE;
                             state.targetIconSize = BASE_ICON_SIZE;
                         } else {
-                            const rect = state.el.getBoundingClientRect();
-                            const itemCenter = rect.left + rect.width / 2;
-                            const dist = Math.abs(mouseX - itemCenter);
+                            const dist = Math.abs(mouseX - state.centerX);
                             if (dist < DISTANCE_RANGE) {
                                 // 余弦平滑钟形曲线，精准匹配 Magic UI Framer Motion useTransform 曲线
                                 const factor = (1 + Math.cos((Math.PI * dist) / DISTANCE_RANGE)) / 2;
@@ -4009,11 +4153,12 @@
                     }
                 }
 
+                desktopDock.addEventListener('mouseenter', cacheDockCenters, { passive: true });
                 desktopDock.addEventListener('mousemove', (e) => {
                     mouseX = e.clientX;
                     updateTargets();
                     startAnimation();
-                });
+                }, { passive: true });
 
                 desktopDock.addEventListener('mouseleave', () => {
                     mouseX = null;
@@ -4132,33 +4277,6 @@
             }
 
             setupFloatingDock();
-
-            // Magic UI Shiny Button --x 动画在无 CSS @property 支持环境下的兼容降级
-            (function setupShinyButtonFallback() {
-                const btn = document.getElementById('btn-open-wechat-qr');
-                if (!btn) return;
-                if (!window.CSS || !CSS.supports || !CSS.supports('syntax', '"<percentage>"')) {
-                    let startTime = null;
-                    const duration = 2100;
-                    const delay = 1400;
-                    const total = duration + delay;
-                    function step(timestamp) {
-                        if (!startTime) startTime = timestamp;
-                        const elapsed = (timestamp - startTime) % total;
-                        let p;
-                        if (elapsed < duration) {
-                            const t = elapsed / duration;
-                            const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-                            p = 100 - ease * 200;
-                        } else {
-                            p = -100;
-                        }
-                        btn.style.setProperty('--x', `${p}%`);
-                        requestAnimationFrame(step);
-                    }
-                    requestAnimationFrame(step);
-                }
-            })();
 
             // ========================================================
             // Cult UI 官方风格 Logo Carousel 品牌轮播组件核心逻辑
